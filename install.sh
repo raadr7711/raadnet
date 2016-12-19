@@ -122,13 +122,12 @@ download_docker_images() {
 	cd /home/$USERNAME && /usr/local/bin/docker-compose pull
 }
 
-create_docker_containers() {
-  echo "Creating docker containers."
-	cd /home/$USERNAME && /usr/local/bin/docker-compose create
-}
-
-change_data_owner() {
+create_data_volumes() {
 	echo "Changing owner of data directory."
+  mkdir /home/$USERNAME/data/cert
+  mkdir /home/$USERNAME/data/images
+  mkdir /home/$USERNAME/data/config-backups
+  mkdir /home/$USERNAME/data/unms-backups
 	chown -R $USERNAME /home/$USERNAME/data/*
 }
 
@@ -145,8 +144,7 @@ install_docker_compose
 create_user
 download_docker_compose_files
 download_docker_images
-create_docker_containers
-change_data_owner
+create_data_volumes
 start_docker_containers
 
 exit 0
