@@ -1,7 +1,7 @@
 #!/bin/bash
 
 GIT_BRANCH='master'
-GIT_URL="https://raw.githubusercontent.com/Ubiquiti-Cloud/gpon-nms/$GIT_BRANCH"
+GIT_URL="https://raw.githubusercontent.com/Ubiquiti-App/UNMS/$GIT_BRANCH"
 
 
 # linux user for UNMS docker containers
@@ -125,7 +125,7 @@ download_docker_compose_files() {
 
 		change_port
 #		change_suspend_port
-		enable_ssl
+#		enable_ssl
 	fi
 }
 
