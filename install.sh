@@ -124,7 +124,7 @@ download_docker_images() {
 
 create_docker_containers() {
   echo "Creating docker containers."
-	cd /home/$USERNAME && /usr/local/bin/docker-compose build
+	cd /home/$USERNAME && /usr/local/bin/docker-compose create
 }
 
 change_data_owner() {
