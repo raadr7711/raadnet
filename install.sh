@@ -124,7 +124,7 @@ download_docker_compose_files() {
 #		sed -i -e "s/POSTGRES_PASSWORD=ucrmdbpass1/POSTGRES_PASSWORD=$POSTGRES_PASSWORD/g" /home/$USERNAME/docker-compose.env
 #		sed -i -e "s/SECRET=changeThisSecretKey/SECRET=$SECRET/g" /home/$USERNAME/docker-compose.env
 
-		change_port
+#		change_port
 #		change_suspend_port
 #		enable_ssl
 	fi
@@ -256,7 +256,7 @@ download_docker_images() {
 start_docker_images() {
 	echo "Starting docker images."
 	cd /home/$USERNAME && \
-	/usr/local/bin/docker-compose -f docker-compose.yml -f docker-compose.migrate.yml run migrate_app && \
+#	/usr/local/bin/docker-compose -f docker-compose.yml -f docker-compose.migrate.yml run migrate_app && \
 	/usr/local/bin/docker-compose up -d && \
 	/usr/local/bin/docker-compose ps
 }
