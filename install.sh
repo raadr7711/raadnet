@@ -129,7 +129,7 @@ create_data_volumes() {
   mkdir /home/$USERNAME/data/images
   mkdir /home/$USERNAME/data/config-backups
   mkdir /home/$USERNAME/data/unms-backups
-  chown -R $USERNAME /home/$USERNAME/data/*
+  chown -R 1000 /home/$USERNAME/data/*
 }
 
 start_docker_containers() {
