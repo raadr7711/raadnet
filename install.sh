@@ -3,6 +3,7 @@
 GIT_BRANCH='master'
 GIT_URL="https://raw.githubusercontent.com/Ubiquiti-App/UNMS/$GIT_BRANCH"
 
+PATH="$PATH:/usr/local/bin"
 
 # linux user for UNMS docker containers
 USERNAME="unms"
