@@ -35,4 +35,6 @@ services:
       - 80:8080
       - 443:8443
     environment:
+      - PROD=true
       - PUBLIC_HTTPS_PORT=443
+
