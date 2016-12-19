@@ -1,6 +1,7 @@
 version: '2'
 services:
   redis:
+    container_name: unms-redis
     image: redis:3.2.3
     restart: always
     volumes:
@@ -10,6 +11,7 @@ services:
     command: "redis-server --appendonly yes --dir /data/db/"
 
   mongo:
+    container_name: unms-mongo
     image: mongo:3.2.11
     restart: always
     volumes:
@@ -17,7 +19,8 @@ services:
     ports:
       - 27017:27017
 
-  web_app:
+  unms:
+    container_name: unms
     image: ubnt/unms:latest
     restart: always
     links:
