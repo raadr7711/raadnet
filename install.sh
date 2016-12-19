@@ -122,13 +122,18 @@ download_docker_images() {
 	cd /home/$USERNAME && /usr/local/bin/docker-compose pull
 }
 
-change_data_owner() {
-	echo "Changing owner of data directory."
-	chown -R $USERNAME /home/$USERNAME/data
+create_docker_containers() {
+  echo "Creating docker containers."
+	cd /home/$USERNAME && /usr/local/bin/docker-compose build
 }
 
-start_docker_images() {
-	echo "Starting docker images."
+change_data_owner() {
+	echo "Changing owner of data directory."
+	chown -R $USERNAME /home/$USERNAME/data/*
+}
+
+start_docker_containers() {
+	echo "Starting docker containers."
 	cd /home/$USERNAME && \
 	/usr/local/bin/docker-compose up -d && \
 	/usr/local/bin/docker-compose ps
@@ -140,7 +145,8 @@ install_docker_compose
 create_user
 download_docker_compose_files
 download_docker_images
+create_docker_containers
 change_data_owner
-start_docker_images
+start_docker_containers
 
 exit 0
