@@ -9,134 +9,134 @@ PATH="$PATH:/usr/local/bin"
 USERNAME="unms"
 
 check_system() {
-	local lsb_dist
-	local dist_version
+  local lsb_dist
+  local dist_version
 
-	if [ -z "$lsb_dist" ] && [ -r /etc/lsb-release ]; then
-		lsb_dist="$(. /etc/lsb-release && echo "$DISTRIB_ID")"
-	fi
+  if [ -z "$lsb_dist" ] && [ -r /etc/lsb-release ]; then
+    lsb_dist="$(. /etc/lsb-release && echo "$DISTRIB_ID")"
+  fi
 
-	if [ -z "$lsb_dist" ] && [ -r /etc/debian_version ]; then
-		lsb_dist='debian'
-	fi
+  if [ -z "$lsb_dist" ] && [ -r /etc/debian_version ]; then
+    lsb_dist='debian'
+  fi
 
-	if [ -z "$lsb_dist" ] && [ -r /etc/fedora-release ]; then
-		lsb_dist='fedora'
-	fi
+  if [ -z "$lsb_dist" ] && [ -r /etc/fedora-release ]; then
+    lsb_dist='fedora'
+  fi
 
-	if [ -z "$lsb_dist" ] && [ -r /etc/oracle-release ]; then
-		lsb_dist='oracleserver'
-	fi
+  if [ -z "$lsb_dist" ] && [ -r /etc/oracle-release ]; then
+    lsb_dist='oracleserver'
+  fi
 
-	if [ -z "$lsb_dist" ]; then
-		if [ -r /etc/centos-release ] || [ -r /etc/redhat-release ]; then
-		lsb_dist='centos'
-		fi
-	fi
+  if [ -z "$lsb_dist" ]; then
+    if [ -r /etc/centos-release ] || [ -r /etc/redhat-release ]; then
+    lsb_dist='centos'
+    fi
+  fi
 
-	if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
-		lsb_dist="$(. /etc/os-release && echo "$ID")"
-	fi
+  if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
+    lsb_dist="$(. /etc/os-release && echo "$ID")"
+  fi
 
-	lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
+  lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
 
-	case "$lsb_dist" in
+  case "$lsb_dist" in
 
-		ubuntu)
-		if [ -z "$dist_version" ] && [ -r /etc/lsb-release ]; then
-			dist_version="$(. /etc/lsb-release && echo "$DISTRIB_CODENAME")"
-		fi
-		;;
+    ubuntu)
+    if [ -z "$dist_version" ] && [ -r /etc/lsb-release ]; then
+      dist_version="$(. /etc/lsb-release && echo "$DISTRIB_CODENAME")"
+    fi
+    ;;
 
-		debian)
-		dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
-		;;
+    debian)
+    dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
+    ;;
 
-		*)
-		if [ -z "$dist_version" ] && [ -r /etc/os-release ]; then
-			dist_version="$(. /etc/os-release && echo "$VERSION_ID")"
-		fi
-		;;
+    *)
+    if [ -z "$dist_version" ] && [ -r /etc/os-release ]; then
+      dist_version="$(. /etc/os-release && echo "$VERSION_ID")"
+    fi
+    ;;
 
-	esac
+  esac
 
-	if [ "$lsb_dist" = "ubuntu" ] && [ "$dist_version" != "xenial" ] || [ "$lsb_dist" = "debian" ] && [ "$dist_version" != "8" ]; then
-		echo "Unsupported distro."
-		echo "Supported was: Ubuntu Xenial and Debian 8."
-		echo $lsb_dist
-		echo $dist_version
-		exit 1
-	fi
+  if [ "$lsb_dist" = "ubuntu" ] && [ "$dist_version" != "xenial" ] || [ "$lsb_dist" = "debian" ] && [ "$dist_version" != "8" ]; then
+    echo "Unsupported distro."
+    echo "Supported was: Ubuntu Xenial and Debian 8."
+    echo $lsb_dist
+    echo $dist_version
+    exit 1
+  fi
 }
 
 install_docker() {
-	which docker > /dev/null 2>&1
+  which docker > /dev/null 2>&1
 
-	if [ $? = 1 ]; then
-		echo "Download and install Docker"
-		curl -fsSL https://get.docker.com/ | sh
-	fi
+  if [ $? = 1 ]; then
+    echo "Download and install Docker"
+    curl -fsSL https://get.docker.com/ | sh
+  fi
 
-	which docker > /dev/null 2>&1
+  which docker > /dev/null 2>&1
 
-	if [ $? = 1 ]; then
-		echo "Docker not installed. Please check previous logs. Aborting."
-		exit 1
-	fi
+  if [ $? = 1 ]; then
+    echo "Docker not installed. Please check previous logs. Aborting."
+    exit 1
+  fi
 }
 
 install_docker_compose() {
-	which docker-compose > /dev/null 2>&1
+  which docker-compose > /dev/null 2>&1
 
-	if [ $? = 1 ]; then
-		echo "Download and install Docker compose."
-		curl -L https://github.com/docker/compose/releases/download/1.9.0/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
-		chmod +x /usr/local/bin/docker-compose
-	fi
+  if [ $? = 1 ]; then
+    echo "Download and install Docker compose."
+    curl -L https://github.com/docker/compose/releases/download/1.9.0/docker-compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose
+    chmod +x /usr/local/bin/docker-compose
+  fi
 
-	which docker-compose > /dev/null 2>&1
+  which docker-compose > /dev/null 2>&1
 
-	if [ $? = 1 ]; then
-		echo "Docker compose not installed. Please check previous logs. Aborting."
-		exit 1
-	fi
+  if [ $? = 1 ]; then
+    echo "Docker compose not installed. Please check previous logs. Aborting."
+    exit 1
+  fi
 }
 
 create_user() {
-	if [ -z "$(getent passwd $USERNAME)" ]; then
-		echo "Creating user $USERNAME."
-		useradd -m $USERNAME
-		usermod -aG docker $USERNAME
-	fi
+  if [ -z "$(getent passwd $USERNAME)" ]; then
+    echo "Creating user $USERNAME."
+    useradd -m $USERNAME
+    usermod -aG docker $USERNAME
+  fi
 }
 
 download_docker_compose_files() {
-	if [ ! -f /home/$USERNAME/docker-compose.yml ]; then
-		echo "Downloading docker compose files."
-		curl -o /home/$USERNAME/docker-compose.yml $GIT_URL/docker-compose.yml
-	fi
+  if [ ! -f /home/$USERNAME/docker-compose.yml ]; then
+    echo "Downloading docker compose files."
+    curl -o /home/$USERNAME/docker-compose.yml $GIT_URL/docker-compose.yml
+  fi
 }
 
 download_docker_images() {
-	echo "Downloading docker images."
-	cd /home/$USERNAME && /usr/local/bin/docker-compose pull
+  echo "Downloading docker images."
+  cd /home/$USERNAME && /usr/local/bin/docker-compose pull
 }
 
 create_data_volumes() {
-	echo "Creating data volumes."
+  echo "Creating data volumes."
   mkdir /home/$USERNAME/data
   mkdir /home/$USERNAME/data/cert
   mkdir /home/$USERNAME/data/images
   mkdir /home/$USERNAME/data/config-backups
   mkdir /home/$USERNAME/data/unms-backups
-	chown -R $USERNAME /home/$USERNAME/data/*
+  chown -R $USERNAME /home/$USERNAME/data/*
 }
 
 start_docker_containers() {
-	echo "Starting docker containers."
-	cd /home/$USERNAME && \
-	/usr/local/bin/docker-compose up -d && \
-	/usr/local/bin/docker-compose ps
+  echo "Starting docker containers."
+  cd /home/$USERNAME && \
+  /usr/local/bin/docker-compose up -d && \
+  /usr/local/bin/docker-compose ps
 }
 
 check_system
