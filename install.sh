@@ -108,7 +108,7 @@ install_docker_compose() {
 create_user() {
 	if [ -z "$(getent passwd $USERNAME)" ]; then
 		echo "Creating user $USERNAME."
-		adduser --disabled-password --gecos "" $USERNAME
+		useradd -m $USERNAME
 		usermod -aG docker $USERNAME
 	fi
 }
@@ -117,8 +117,8 @@ download_docker_compose_files() {
 	if [ ! -f /home/$USERNAME/docker-compose.yml ]; then
 		echo "Downloading docker compose files."
 		curl -o /home/$USERNAME/docker-compose.yml $GIT_URL/docker-compose.yml
-		curl -o /home/$USERNAME/docker-compose.migrate.yml $GIT_URL/docker-compose.migrate.yml
-		curl -o /home/$USERNAME/docker-compose.env $GIT_URL/docker-compose.env
+#		curl -o /home/$USERNAME/docker-compose.migrate.yml $GIT_URL/docker-compose.migrate.yml
+#		curl -o /home/$USERNAME/docker-compose.env $GIT_URL/docker-compose.env
 
 #		echo "Replacing env in docker compose."
 #		sed -i -e "s/POSTGRES_PASSWORD=ucrmdbpass1/POSTGRES_PASSWORD=$POSTGRES_PASSWORD/g" /home/$USERNAME/docker-compose.env
@@ -130,34 +130,34 @@ download_docker_compose_files() {
 	fi
 }
 
-change_port() {
-	local PORT
-
-	while true; do
-		if [ "$INSTALL_CLOUD" = true ]; then
-			PORT=y
-		else
-			read -r -p "Do you want UNMS to be accessible on port 80? (Yes: recommended for most users, No: will set 8080 as default) [Y/n]: " PORT
-		fi
-
-		case $PORT in
-			[yY][eE][sS]|[yY])
-				sed -i -e "s/- 8080:80/- 80:80/g" /home/$USERNAME/docker-compose.yml
-				sed -i -e "s/- 8443:443/- 443:443/g" /home/$USERNAME/docker-compose.yml
-				echo "UNMS will start at 80 port."
-				echo "#used only in instalation" >> /home/$USERNAME/docker-compose.env
-				echo "SERVER_PORT=80" >> /home/$USERNAME/docker-compose.env
-				break;;
-			[nN][oO]|[nN])
-				echo "UNMS will start at 8080 port. If you will change it, edit your docker-compose.yml in $USERNAME home directory."
-				echo "#used only in instalation" >> /home/$USERNAME/docker-compose.env
-				echo "SERVER_PORT=8080" >> /home/$USERNAME/docker-compose.env
-				break;;
-			*)
-				;;
-		esac
-	done
-}
+#change_port() {
+#	local PORT
+#
+#	while true; do
+#		if [ "$INSTALL_CLOUD" = true ]; then
+#			PORT=y
+#		else
+#			read -r -p "Do you want UNMS to be accessible on port 80? (Yes: recommended for most users, No: will set 8080 as default) [Y/n]: " PORT
+#		fi
+#
+#		case $PORT in
+#			[yY][eE][sS]|[yY])
+#				sed -i -e "s/- 8080:80/- 80:80/g" /home/$USERNAME/docker-compose.yml
+#				sed -i -e "s/- 8443:443/- 443:443/g" /home/$USERNAME/docker-compose.yml
+#				echo "UNMS will start at 80 port."
+#				echo "#used only in instalation" >> /home/$USERNAME/docker-compose.env
+#				echo "SERVER_PORT=80" >> /home/$USERNAME/docker-compose.env
+#				break;;
+#			[nN][oO]|[nN])
+#				echo "UNMS will start at 8080 port. If you will change it, edit your docker-compose.yml in $USERNAME home directory."
+#				echo "#used only in instalation" >> /home/$USERNAME/docker-compose.env
+#				echo "SERVER_PORT=8080" >> /home/$USERNAME/docker-compose.env
+#				break;;
+#			*)
+#				;;
+#		esac
+#	done
+#}
 
 #change_suspend_port() {
 #	local PORT
