@@ -122,6 +122,11 @@ download_docker_images() {
 	cd /home/$USERNAME && /usr/local/bin/docker-compose pull
 }
 
+change_data_owner() {
+	echo "Changing owner of data directory."
+	chown -R $USERNAME /home/$USERNAME/data
+}
+
 start_docker_images() {
 	echo "Starting docker images."
 	cd /home/$USERNAME && \
@@ -135,6 +140,7 @@ install_docker_compose
 create_user
 download_docker_compose_files
 download_docker_images
+change_data_owner
 start_docker_images
 
 exit 0
