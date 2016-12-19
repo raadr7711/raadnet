@@ -123,7 +123,8 @@ download_docker_images() {
 }
 
 create_data_volumes() {
-	echo "Changing owner of data directory."
+	echo "Creating data volumes."
+  mkdir /home/$USERNAME/data
   mkdir /home/$USERNAME/data/cert
   mkdir /home/$USERNAME/data/images
   mkdir /home/$USERNAME/data/config-backups
