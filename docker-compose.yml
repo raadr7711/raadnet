@@ -21,7 +21,7 @@ services:
 
   unms:
     container_name: unms
-    image: ubnt/unms:latest
+    image: ubnt/unms:${VERSION}
     restart: always
     links:
       - redis
