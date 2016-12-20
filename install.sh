@@ -111,28 +111,45 @@ install_docker_compose() {
 create_user() {
   if [ -z "$(getent passwd $USERNAME)" ]; then
     echo "Creating user $USERNAME."
+
     useradd -m $USERNAME
+    if [ $? = 1 ]; then
+      echo "Failed to create user '$USERNAME'"
+      exit 1
+    fi
+
     usermod -aG docker $USERNAME
+    if [ $? = 1 ]; then
+      echo "Failed to add user '$USERNAME' to docker group."
+      exit 1
+    fi
   fi
 }
 
 download_docker_compose_files() {
   echo "Downloading docker compose files."
   curl -o /home/$USERNAME/docker-compose.yml $GIT_URL/docker-compose.yml
+  if [ $? = 1 ]; then
+    echo "Failed to download docker-compose.yml"
+    exit 1
+  fi
 }
 
 download_docker_images() {
   echo "Downloading docker images."
   cd /home/$USERNAME && /usr/local/bin/docker-compose pull
+  if [ $? = 1 ]; then
+    echo "Failed to pull docker images"
+    exit 1
+  fi
 }
 
 create_data_volumes() {
   echo "Creating data volumes."
-  mkdir /home/$USERNAME/data
-  mkdir /home/$USERNAME/data/cert
-  mkdir /home/$USERNAME/data/images
-  mkdir /home/$USERNAME/data/config-backups
-  mkdir /home/$USERNAME/data/unms-backups
+  mkdir -p /home/$USERNAME/data/cert
+  mkdir -p /home/$USERNAME/data/images
+  mkdir -p /home/$USERNAME/data/config-backups
+  mkdir -p /home/$USERNAME/data/unms-backups
   chown -R 1000 /home/$USERNAME/data/*
 }
 
