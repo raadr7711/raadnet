@@ -117,10 +117,8 @@ create_user() {
 }
 
 download_docker_compose_files() {
-  if [ ! -f /home/$USERNAME/docker-compose.yml ]; then
-    echo "Downloading docker compose files."
-    curl -o /home/$USERNAME/docker-compose.yml $GIT_URL/docker-compose.yml
-  fi
+  echo "Downloading docker compose files."
+  curl -o /home/$USERNAME/docker-compose.yml $GIT_URL/docker-compose.yml
 }
 
 download_docker_images() {
