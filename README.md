@@ -1,9 +1,7 @@
 # UNMS Beta
 
-## Installation - [Download UNMS using this guide](https://github.com/Ubiquiti-App/UNMS/wiki/Installation-guide)
-
-## Update
-Please follow this [Update guide](https://github.com/Ubiquiti-App/UNMS/wiki/Update-guide)
+## Installation & Update
+[Download UNMS using this guide](https://github.com/Ubiquiti-App/UNMS/wiki/Installation-guide)
 
 ## Uninstall
 Please follow this [Uninstall guide](https://github.com/Ubiquiti-App/UNMS/wiki/Uninstall-guide)
