@@ -5,6 +5,8 @@ which docker
 if [ $? = 0 ]; then
   PATH="$PATH:/usr/local/bin"
   export VERSION="dummy";
+  export DEMO="dummy";
+  export PROD="dummy";
 
   docker-compose stop
   docker-compose rm -f
