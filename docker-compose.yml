@@ -35,6 +35,7 @@ services:
       - 80:8080
       - 443:8443
     environment:
-      - PROD=true
+      - PROD=${PROD}
       - PUBLIC_HTTPS_PORT=443
+      - DEMO=${DEMO}
 

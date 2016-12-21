@@ -5,11 +5,36 @@ GIT_URL="https://raw.githubusercontent.com/Ubiquiti-App/UNMS/$GIT_BRANCH"
 
 PATH="$PATH:/usr/local/bin"
 
-if [ "$1" = "" ]; then
-	export VERSION="latest"
-else
-	export VERSION=$1
-fi
+
+# parse arguments
+VERSION="latest"
+PROD="true"
+DEMO="false"
+
+while [[ $# -gt 0 ]]
+do
+key="$1"
+
+case $key in
+    --dev)
+    PROD="false"
+    ;;
+    --demo)
+    DEMO="true"
+    ;;
+    -v|--version)
+    VERSION="$2"
+    shift # past argument value
+    ;;
+    *)
+    # unknown option
+    ;;
+esac
+done
+
+export VERSION
+export DEMO
+export PROD
 
 # linux user for UNMS docker containers
 USERNAME="unms"
