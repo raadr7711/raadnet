@@ -30,6 +30,7 @@ case $key in
     # unknown option
     ;;
 esac
+shift # past argument key
 done
 
 export VERSION
