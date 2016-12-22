@@ -1,4 +1,4 @@
-# UNMS Beta
+# UNMS (alpha)
 
 ## Installation & Update
 [Download UNMS using this guide](https://github.com/Ubiquiti-App/UNMS/wiki/Installation-%26-Update)
