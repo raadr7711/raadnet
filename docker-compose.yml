@@ -23,7 +23,7 @@ services:
     container_name: unms
     image: ubnt/unms:${VERSION}
     restart: always
-    links:
+    depends_on:
       - redis
       - mongo
     volumes:
