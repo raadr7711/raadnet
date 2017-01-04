@@ -4,8 +4,9 @@ services:
     container_name: unms-redis
     image: redis:3.2.3
     restart: always
+    mem_limit: 200000000
     volumes:
-      - ./data/redis:/data/db
+      - ${DATA_DIR}/redis:/data/db
     ports:
       - 6379:6379
     command: "redis-server --appendonly yes --dir /data/db/"
@@ -14,23 +15,25 @@ services:
     container_name: unms-mongo
     image: mongo:3.2.11
     restart: always
+    mem_limit: 200000000
     volumes:
-      - ./data/mongo:/data/db
+      - ${DATA_DIR}/mongo:/data/db
     ports:
       - 27017:27017
 
   unms:
     container_name: unms
-    image: ubnt/unms:${VERSION}
+    image: ${DOCKER_IMAGE}:${VERSION}
     restart: always
+    mem_limit: 550000000
     depends_on:
       - redis
       - mongo
     volumes:
-      - ./data/cert:/home/app/unms/cert
-      - ./data/images:/home/app/unms/public/site-images
-      - ./data/config-backups:/home/app/unms/data/config-backups
-      - ./data/unms-backups:/home/app/unms/data/unms-backups
+      - ${DATA_DIR}/cert:/home/app/unms/cert
+      - ${DATA_DIR}/images:/home/app/unms/public/site-images
+      - ${DATA_DIR}/config-backups:/home/app/unms/data/config-backups
+      - ${DATA_DIR}/unms-backups:/home/app/unms/data/unms-backups
     ports:
       - 80:8080
       - 443:8443
@@ -38,4 +41,3 @@ services:
       - PROD=${PROD}
       - PUBLIC_HTTPS_PORT=443
       - DEMO=${DEMO}
-

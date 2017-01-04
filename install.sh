@@ -1,15 +1,19 @@
 #!/bin/bash
-
-GIT_BRANCH='master'
-GIT_URL="https://raw.githubusercontent.com/Ubiquiti-App/UNMS/$GIT_BRANCH"
-
 PATH="$PATH:/usr/local/bin"
 
+# linux user for UNMS docker containers
+USERNAME="unms"
 
 # parse arguments
 VERSION="latest"
 PROD="true"
 DEMO="false"
+DOCKER_IMAGE="ubnt/unms"
+DOCKER_USERNAME=""
+DOCKER_PASSWORD=""
+DATA_DIR="/home/$USERNAME/data"
+GIT_URL="https://raw.githubusercontent.com/Ubiquiti-App/UNMS/master"
+GIT_TOKEN=""
 
 while [[ $# -gt 0 ]]
 do
@@ -17,13 +21,46 @@ key="$1"
 
 case $key in
     --dev)
+    echo "Setting PROD=false"
     PROD="false"
     ;;
     --demo)
+    echo "Setting DEMO=true"
     DEMO="true"
     ;;
     -v|--version)
+    echo "Setting VERSION=$2"
     VERSION="$2"
+    shift # past argument value
+    ;;
+    --docker-image)
+    echo "Setting DOCKER_IMAGE=$2"
+    DOCKER_IMAGE="$2"
+    shift # past argument value
+    ;;
+    --docker-username)
+    echo "Setting DOCKER_USERNAME=$2"
+    DOCKER_USERNAME="$2"
+    shift # past argument value
+    ;;
+    --docker-password)
+    echo "Setting DOCKER_PASSWORD=*****"
+    DOCKER_PASSWORD="$2"
+    shift # past argument value
+    ;;
+    --data-dir)
+    echo "Setting DATA_DIR=$2"
+    DATA_DIR="$2"
+    shift # past argument value
+    ;;
+    --git-url)
+    echo "Setting GIT_URL=$2"
+    GIT_URL="$2"
+    shift # past argument value
+    ;;
+    --git-token)
+    echo "Setting GIT_TOKEN=*****"
+    GIT_TOKEN="$2"
     shift # past argument value
     ;;
     *)
@@ -36,9 +73,8 @@ done
 export VERSION
 export DEMO
 export PROD
-
-# linux user for UNMS docker containers
-USERNAME="unms"
+export DOCKER_IMAGE
+export DATA_DIR
 
 check_system() {
   local lsb_dist
@@ -154,7 +190,12 @@ create_user() {
 
 download_docker_compose_files() {
   echo "Downloading docker compose files."
-  curl -o /home/$USERNAME/docker-compose.yml $GIT_URL/docker-compose.yml
+  if [[ $GIT_TOKEN ]]; then
+    curl -H "Authorization: token $GIT_TOKEN" -o "/home/$USERNAME/docker-compose.yml" $GIT_URL/docker-compose.yml
+  else
+    curl -o "/home/$USERNAME/docker-compose.yml" $GIT_URL/docker-compose.yml
+  fi
+
   if [ $? = 1 ]; then
     echo "Failed to download docker-compose.yml"
     exit 1
@@ -163,7 +204,11 @@ download_docker_compose_files() {
 
 download_docker_images() {
   echo "Downloading docker images."
-  cd /home/$USERNAME && /usr/local/bin/docker-compose pull
+  cd /home/$USERNAME
+  if [[ $DOCKER_USERNAME ]]; then
+    docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD" -e="dummy"
+  fi
+  /usr/local/bin/docker-compose pull
   if [ $? = 1 ]; then
     echo "Failed to pull docker images"
     exit 1
@@ -172,11 +217,11 @@ download_docker_images() {
 
 create_data_volumes() {
   echo "Creating data volumes."
-  mkdir -p /home/$USERNAME/data/cert
-  mkdir -p /home/$USERNAME/data/images
-  mkdir -p /home/$USERNAME/data/config-backups
-  mkdir -p /home/$USERNAME/data/unms-backups
-  chown -R 1000 /home/$USERNAME/data/*
+  mkdir -p $DATA_DIR/cert
+  mkdir -p $DATA_DIR/images
+  mkdir -p $DATA_DIR/config-backups
+  mkdir -p $DATA_DIR/unms-backups
+  chown -R 1000 $DATA_DIR/*
 }
 
 start_docker_containers() {
