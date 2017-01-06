@@ -11,43 +11,43 @@
 ### Changed
 * [Self include Google fonts](https://github.com/Ubiquiti-App/UNMS/issues/4)
 * [Remove random vertical line on graphs](https://github.com/Ubiquiti-App/UNMS/issues/7)
-* Disable settings for disconnected devices 
+* Disable settings for disconnected devices
 * Update backend to Node.js 7.3
 * Lock UNMS during backup and restore
- 
+
 ### Fixed
 * [Fixed gmail SMTP Settings Failure](https://github.com/Ubiquiti-App/UNMS/issues/10)
 * [Standardized Naming Scheme UNMS or Edge Control](https://github.com/Ubiquiti-App/UNMS/issues/9)
 * Fixed incorrect ONU state after reconnect ONU from one OLT to other
 * Fixed devices up-time and devices outage period format
 
-## 0.7.7 - alpha (2016-01-01)
+## 0.7.7 - alpha (2017-01-01)
 
 ### Configuration
 * Installation wizard
 * Users administration
 * Application backup and restore
 * Google map, SMTP and devices check configuration
-* Users preferences 
+* Users preferences
 * Demo and presentation mode
 
 ### EdgeRouter
 * List of all interfaces with interface configuration
 * Services configuration (NTP, SSH, Telnet, Syslog, SNMP, Web, Discovery)
-* Logs
-* Statistics (latency, outage, cpu, memory, download/upload for all interfaces/ports) with hour/day/month view. 
+* Logs list with filtering
+* Statistics (latency, outage, cpu, memory, download/upload for all interfaces/ports) with hour/day/month view.
 * Device configuration backup
 * Device basic settings (name, timezone, gateway, DNS, users)
 
 ### OLT
 * List of all Ports
 * Logs list with filtering
-* Statistics (latency, outage, cpu, memory, download/upload for all interfaces/ports) with hour/day/month view. 
+* Statistics (latency, outage, cpu, memory, download/upload for all interfaces/ports) with hour/day/month view.
 * Device configuration backup
 
 ### ONU
 * Logs list with filtering
-* Statistics (latency, outage, cpu, memory, download/upload for all interfaces/ports) with hour/day/month view. 
+* Statistics (latency, outage, cpu, memory, download/upload for all interfaces/ports) with hour/day/month view.
 
 ### Sites
 * Sites list with filtering
