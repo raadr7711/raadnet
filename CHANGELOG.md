@@ -21,7 +21,7 @@
 * Fixed incorrect ONU state after reconnect ONU from one OLT to other
 * Fixed devices up-time and devices outage period format
 
-## 0.7.7 [alpha] (2016-01-01)
+## 0.7.7 - alpha (2016-01-01)
 
 ### Configuration
 * Installation wizard
