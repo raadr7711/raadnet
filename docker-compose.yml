@@ -1,21 +1,30 @@
 version: '2'
+
+networks:
+  internal:
+    internal: true
+
 services:
   redis:
     container_name: unms-redis
     image: redis:3.2.3
     restart: always
     mem_limit: 200000000
+    networks:
+      - internal
     volumes:
       - ${DATA_DIR}/redis:/data/db
     ports:
       - 6379:6379
-    command: "redis-server --appendonly yes --dir /data/db/"
+    command: redis-server --appendonly yes --dir /data/db/
 
   mongo:
     container_name: unms-mongo
     image: mongo:3.2.11
     restart: always
     mem_limit: 200000000
+    networks:
+      - internal
     volumes:
       - ${DATA_DIR}/mongo:/data/db
     ports:
@@ -26,6 +35,9 @@ services:
     image: ${DOCKER_IMAGE}:${VERSION}
     restart: always
     mem_limit: 550000000
+    networks:
+      - internal
+      - default
     depends_on:
       - redis
       - mongo
