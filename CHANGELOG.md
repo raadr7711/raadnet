@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.7.10 (2017-01-12)
+
+### Added
+* Add notifications about new UNMS version
+* New log events for devices: authorization, delete, restart, backups, discover, move.
+* New screen device settings for OLT
+* New screen device services for OLT
+* List of all DHCP leases
+* IP addresses in device interfaces are clickable
+
+### Changed
+* [Responsive header](https://github.com/Ubiquiti-App/UNMS/issues/13)
+* Responsive services page
+* Isolate backend services in docker compose
+* UNMS support info includes full server log
+* Optimise notification mailing
+* Disable setup route on configured UNMS 
+* Refactor error messages and validation rules
+
+### Fixed
+* [Fix device confifuration backup](https://github.com/Ubiquiti-App/UNMS/issues/5)
+* Fix tx rate and rx rate in statistics
+* Fix DNS servers validation
+* Fix NTP server validation
+* Fix assigning device to the newly created site
+* Fix outages without site
+* Fix outages popover (rendering and data)
+* Fix unread logs counter
+* Fix links to devices under Logs and Outages
+
 ## 0.7.9 (2017-01-05)
 
 ### Added

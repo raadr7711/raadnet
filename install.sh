@@ -11,9 +11,12 @@ DEMO="false"
 DOCKER_IMAGE="ubnt/unms"
 DOCKER_USERNAME=""
 DOCKER_PASSWORD=""
-DATA_DIR="/home/$USERNAME/data"
+HOME_DIR="/home/$USERNAME"
+CONFIG_DIR="$HOME_DIR/conf"
+DATA_DIR="$HOME_DIR/data"
 GIT_URL="https://raw.githubusercontent.com/Ubiquiti-App/UNMS/master"
 GIT_TOKEN=""
+PACKAGE="install.tar.gz"
 
 while [[ $# -gt 0 ]]
 do
@@ -48,6 +51,11 @@ case $key in
     DOCKER_PASSWORD="$2"
     shift # past argument value
     ;;
+    --config-dir)
+    echo "Setting CONFIG_DIR=$2"
+    CONFIG_DIR="$2"
+    shift # past argument value
+    ;;
     --data-dir)
     echo "Setting DATA_DIR=$2"
     DATA_DIR="$2"
@@ -75,6 +83,7 @@ export DEMO
 export PROD
 export DOCKER_IMAGE
 export DATA_DIR
+export CONFIG_DIR
 
 check_system() {
   local lsb_dist
@@ -188,23 +197,34 @@ create_user() {
   fi
 }
 
-download_docker_compose_files() {
-  echo "Downloading docker compose files."
+download_package() {
+  echo "Downloading installation package."
   if [[ $GIT_TOKEN ]]; then
-    curl -H "Authorization: token $GIT_TOKEN" -o "/home/$USERNAME/docker-compose.yml" $GIT_URL/docker-compose.yml
+    curl -H "Authorization: token $GIT_TOKEN" -o "$HOME_DIR/$PACKAGE" $GIT_URL/$PACKAGE
   else
-    curl -o "/home/$USERNAME/docker-compose.yml" $GIT_URL/docker-compose.yml
+    curl -o "$HOME_DIR/$PACKAGE" $GIT_URL/$PACKAGE
   fi
 
   if [ $? = 1 ]; then
-    echo "Failed to download docker-compose.yml"
+    echo "Failed to download installation package $PACKAGE"
     exit 1
   fi
 }
 
+extract_package() {
+  echo "Extracting installation package."
+  cd "$HOME_DIR"
+  tar -xvzf "$PACKAGE"
+  if [ $? = 1 ]; then
+    echo "Failed to extract installation package $PACKAGE"
+    exit 1
+  fi
+  rm "$PACKAGE"
+}
+
 download_docker_images() {
   echo "Downloading docker images."
-  cd /home/$USERNAME
+  cd "$HOME_DIR"
   if [[ $DOCKER_USERNAME ]]; then
     docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD" -e="dummy"
   fi
@@ -221,13 +241,19 @@ create_data_volumes() {
   mkdir -p $DATA_DIR/images
   mkdir -p $DATA_DIR/config-backups
   mkdir -p $DATA_DIR/unms-backups
+  mkdir -p $DATA_DIR/logs
   chown -R 1000 $DATA_DIR/*
 }
 
 start_docker_containers() {
   echo "Starting docker containers."
-  cd /home/$USERNAME && \
-  /usr/local/bin/docker-compose up -d && \
+  cd "$HOME_DIR" && \
+  /usr/local/bin/docker-compose up -d
+  if [ $? = 1 ]; then
+    echo "Failed to start docker containers"
+    exit 1
+  fi
+
   /usr/local/bin/docker-compose ps
 }
 
@@ -235,7 +261,8 @@ check_system
 install_docker
 install_docker_compose
 create_user
-download_docker_compose_files
+download_package
+extract_package
 download_docker_images
 create_data_volumes
 start_docker_containers
