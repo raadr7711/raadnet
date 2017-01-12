@@ -20,10 +20,10 @@
 * Refactor error messages and validation rules
 
 ### Fixed
-* [Fix device confifuration backup](https://github.com/Ubiquiti-App/UNMS/issues/5)
+* [Fix device configuration backup](https://github.com/Ubiquiti-App/UNMS/issues/5)
 * Fix tx rate and rx rate in statistics
 * Fix DNS servers validation
-* Fix NTP server validation
+* Fix NTP servers validation
 * Fix assigning device to the newly created site
 * Fix outages without site
 * Fix outages popover (rendering and data)
