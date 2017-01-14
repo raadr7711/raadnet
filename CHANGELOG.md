@@ -1,9 +1,22 @@
+# Planned key features for 1.0.0
+* **EdgeRouter** - Routing editor
+* **EdgeRouter** - QoS editor
+* **EdgeRouter** - Firewall editor
+* **EdgeSwitch** - Full support
+* **UNMS** - Full-text search
+* **UNMS** - Network dashboard
+* **UNMS** - Devices discovery manager
+* **UNMS** - Firmwares upgrade manager
+* **UNMS** - Application automatic upgrade
+* **UNMS** - SSO support for UBNT account
+* **UNMS** - Remote device CLI in UNMS UI
+
 # Changelog
 
 ## 0.7.10 (2017-01-12)
 
 ### Added
-* Add notifications about new UNMS version
+* Add notifications about the new UNMS version
 * New log events for devices: authorization, delete, restart, backups, discover, move.
 * New screen device settings for OLT
 * New screen device services for OLT
