@@ -177,6 +177,15 @@ install_docker_compose() {
     echo "Docker compose not installed. Please check previous logs. Aborting."
     exit 1
   fi
+
+  DOCKER_COMPOSE_VERSION=`docker-compose -v | sed 's/.*version \([0-9]*\.[0-9]*\).*/\1/'`;
+  DOCKER_COMPOSE_MAJOR=${DOCKER_COMPOSE_VERSION%.*}
+  DOCKER_COMPOSE_MINOR=${DOCKER_COMPOSE_VERSION#*.}
+
+  if [ ${DOCKER_COMPOSE_MAJOR} -lt 2 ] && [ ${DOCKER_COMPOSE_MINOR} -lt 9 ] || [ ${DOCKER_COMPOSE_MAJOR} -lt 1 ]; then
+    echo "Docker compose version $DOCKER_COMPOSE_VERSION is not supported. Please upgrade to version 1.9 or newer and try again."
+    exit 1
+  fi
 }
 
 create_user() {
