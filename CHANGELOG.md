@@ -1,3 +1,9 @@
+# Versioning
+* 0.7.x - Alpha
+* 0.8.x - Beta
+* 0.9.x - Release Candidate
+* 1.0.x - Production Release
+
 # Planned key features for 1.0.0
 * **EdgeRouter** - Routing editor
 * **EdgeRouter** - QoS editor
@@ -12,6 +18,31 @@
 * **UNMS** - Remote device CLI in UNMS UI
 
 # Changelog
+
+## 0.7.11 (2017-01-20)
+
+### Added
+* [Display Optical Vender Name](https://github.com/Ubiquiti-App/UNMS/issues/15)
+* Support for EdgePoints (EP-R6, EP-R8)
+* New screen list of all ONUs for OLT
+* Icons for all devices
+
+### Changed
+* Change UNMS default page to devices
+* Change favicon to UBNT logo
+
+### Fixed
+* Fix outages for deleted devices
+* Fix outages during UNMS restart
+* Fix input autocomplete behaviour
+* Fix services screen for disconnected devices
+* Fix logs rendering
+* Fix ONU signal rendering
+* Fix scroll in Firefox
+* Fix rendering images in gallery
+* Fix icons rendering in maps
+* Fix screen blinking during data load
+* Fix minor UI bugs and stability
 
 ## 0.7.10 (2017-01-12)
 
@@ -64,7 +95,7 @@
 * Fixed incorrect ONU state after reconnect ONU from one OLT to other
 * Fixed devices up-time and devices outage period format
 
-## 0.7.7 - alpha (2017-01-01)
+## 0.7.7 (2017-01-01)
 
 ### Configuration
 * Installation wizard
