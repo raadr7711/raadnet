@@ -251,7 +251,12 @@ create_data_volumes() {
   mkdir -p $DATA_DIR/config-backups
   mkdir -p $DATA_DIR/unms-backups
   mkdir -p $DATA_DIR/logs
+  mkdir -p $DATA_DIR/redis
   chown -R 1000 $DATA_DIR/*
+  chown -R 999 $DATA_DIR/redis
+  chown -R 999 $DATA_DIR/mongo
+  chmod 755 $DATA_DIR/redis
+  chmod 755 $DATA_DIR/mongo
 }
 
 start_docker_containers() {
