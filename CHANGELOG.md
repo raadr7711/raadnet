@@ -19,6 +19,59 @@
 
 # Changelog
 
+## 0.7.12 (2017-02-12)
+
+### Added
+* Add new sections to UNMS installation wiki page (new advanced features such as custom ports mapping and custom ssl certificate) 
+* Add note field to device move popup
+* Add POE confirm dialog
+* Add support for fullscreen maps
+* Add image reordering and drag & drop support
+* Add drag & drop upload to galleries
+* Add interface editors for OLTs
+* Add loglines when device reappear in UNMS
+* [Add loglines for failed login](https://github.com/Ubiquiti-App/UNMS/issues/18)
+* [Add clickable device name in logline popup](https://github.com/Ubiquiti-App/UNMS/issues/20)
+* [Add loglines about who moves devices / approves authorizations](https://github.com/Ubiquiti-App/UNMS/issues/19)
+* Add loglines for interface status changes
+* Add mock version of Discovery manager
+* Add mass device configuration backup download
+* Add auto device configuration backup when device connect to UNMS
+* Add link between ONUs in ONU list to ONU editor
+* Add SMTP help to installation wizard
+* Add device and site links to loglines
+* Add new loglines about data migration (UNMS version upgrade)
+
+### Changed
+* **Migrate UNMS from MongoDB to PostgreSQL** 
+* Installation script checks docker-compose (upgrade is supported)
+* Installation script can setup custom HTTP and HTTPS ports
+* Installation script allow to setup custom SSL certificate
+* Address is optional for sites and endpoints
+* Update device configuration backup file names
+* Icons in all sections show device/site/endpoints status
+* Remove switch disable action
+* Update help in the new version notification popup
+* Remove loglines older than one month
+* Remove outages older than three months
+
+### Fixed
+* Fix SFP and PON port editor
+* Fix search devices by model and version
+* Fix bug with UNMS connection string
+* Fix backend for DHCP servers and leases 
+* Fix sites and endpoints status
+* Fix SMTP setup
+* Fix ERPoe5 icons and port configuration
+* Fix certificate renewal
+* Fix switch ports backend
+* Fix gallery UI bugs
+* Fix CIDR addresses validations and editors
+* Fix synchronization of interfaces state
+* Fix logline counts in logline popup
+* Fix rendering device uptime (longer than one month)
+* Fix rendering device router screen header
+
 ## 0.7.11 (2017-01-20)
 
 ### Added
