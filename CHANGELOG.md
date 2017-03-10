@@ -1,23 +1,47 @@
-# Versioning
-* 0.7.x - Alpha
-* 0.8.x - Beta
-* 0.9.x - Release Candidate
-* 1.0.x - Production Release
-
-# Planned key features for 1.0.0
-* **EdgeRouter** - Routing editor
-* **EdgeRouter** - QoS editor
-* **EdgeRouter** - Firewall editor
-* **EdgeSwitch** - Full support
-* **UNMS** - Full-text search
-* **UNMS** - Network dashboard
-* **UNMS** - Devices discovery manager
-* **UNMS** - Firmwares upgrade manager
-* **UNMS** - Application automatic upgrade
-* **UNMS** - SSO support for UBNT account
-* **UNMS** - Remote device CLI in UNMS UI
-
 # Changelog
+
+## 0.7.13 (TBD)
+
+### Added
+* **Add discovery manager v1 (supports local networks).**
+* Add FW upgrade to minimal supported FW in discovery manager.
+* Add CSV import to discovery manager.
+* Add default IP range to discovery manager.
+* Add GMAIL and generic SMTP account validation in the settings and in the wizard.
+* Add badge with count of unauthorized devices to left menu.
+* Add statistics for switch ports.
+* Add ONU distance to ONU list.
+
+### Changed
+* Update internal data transformation (preparation for new device types).
+* Update platform check in the installation script.
+* Hide link to unms.ubnt.com until it's publicly available.
+* Stop all docker containers in correct order before redeploying.
+* Add support for self signed smtp servers.
+* Delay downloading of device configuration after any change.
+* Finish PPPoE interface editor.
+* Finish VLAN interface editor.
+* Remove ONUs when deleting OLT form UNMS.
+* Store ONU distance, CPU, RAM, voltage
+* Installation script offers alternative ports when default ports are occupied.
+* Propagate configuration errors from devices to UNMS UI.
+* Update interface name. It is showed as description (name).
+
+### Fixed
+* Fix site and endpoint status update.
+* Fix refresh interfaces UI.
+* Fix upload of huge images.
+* Fix stability of devices connection.
+* Fix correct startup order of FW containers.
+* Fix downloads in Firefox.
+* Fix renaming DHCP servers
+* Fix DHCP leases validation.
+* Fix docker volume permissions.
+* Fix installation with self signed certificate.
+* Fix outage duration time.
+* Fix UNMS port in connections string.
+* Fix duplicated labels in statistics.
+* Fix computing values for day and month statistics
 
 ## 0.7.12 (2017-02-12)
 
@@ -203,3 +227,22 @@
 
 ### Outages
 * List of all outages
+
+# Versioning
+* 0.7.x - Alpha
+* 0.8.x - Beta
+* 0.9.x - Release Candidate
+* 1.0.x - Production Release
+
+# Planned key features for 1.0.0
+* **EdgeRouter** - Routing editor
+* **EdgeRouter** - QoS editor
+* **EdgeRouter** - Firewall editor
+* **EdgeSwitch** - Full support
+* **UNMS** - Full-text search
+* **UNMS** - Network dashboard
+* **UNMS** - Devices discovery manager
+* **UNMS** - Firmwares upgrade manager
+* **UNMS** - Application automatic upgrade
+* **UNMS** - SSO support for UBNT account
+* **UNMS** - Remote device CLI in UNMS UI
