@@ -28,10 +28,10 @@
 * Update interface name. It is showed as description (name).
 
 ### Fixed
+* **Fix stability of devices connection (FW 1.9.6alpha2).**
 * Fix site and endpoint status update.
 * Fix refresh interfaces UI.
 * Fix upload of huge images.
-* Fix stability of devices connection.
 * Fix correct startup order of FW containers.
 * Fix downloads in Firefox.
 * Fix renaming DHCP servers
