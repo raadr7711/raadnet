@@ -2,15 +2,24 @@
 
 ## 0.7.13 (TBD)
 
+Its possible to use the current installation script for upgrade. But its necessary to set your custom attributes again (if you defined for example –http-port –https-port etc). They will be saved and it will not be necessary to set them again from the next version.
+
 ### Added
 * **Add discovery manager v1 (supports local networks).**
 * Add FW upgrade to minimal supported FW in discovery manager.
 * Add CSV import to discovery manager.
 * Add default IP range to discovery manager.
+* Add UMobile link in the case when there isn't any discovered device in the discovery manager.
 * Add GMAIL and generic SMTP account validation in the settings and in the wizard.
 * Add badge with count of unauthorized devices to left menu.
-* Add statistics for switch ports.
+* Add statistics for switch p'orts.
 * Add ONU distance to ONU list.
+* Add quarter and year charts.
+* Add PPPoE unique ID validation.
+* Add last seen column to device list.
+* Add demo version of FW upgrade popup.
+* Add require tag to all editors.
+* Add confirm dialog to device restart in maintenance section.
 
 ### Changed
 * Update internal data transformation (preparation for new device types).
@@ -26,6 +35,9 @@
 * Installation script offers alternative ports when default ports are occupied.
 * Propagate configuration errors from devices to UNMS UI.
 * Update interface name. It is showed as description (name).
+* Change device unauthorized bag (red to blue).
+* Remove ONU unsupported statistics.
+* Persistent docker-compose configuration (environment variables).
 
 ### Fixed
 * **Fix stability of devices connection (FW 1.9.6alpha2).**
@@ -41,7 +53,11 @@
 * Fix outage duration time.
 * Fix UNMS port in connections string.
 * Fix duplicated labels in statistics.
-* Fix computing values for day and month statistics
+* Fix computing values for day and month statistics.
+* Fix SFP badge for disconnected interfaces.
+* Fix SFP port speed.
+* Fix description for OLT PON ports.
+
 
 ## 0.7.12 (2017-02-12)
 
