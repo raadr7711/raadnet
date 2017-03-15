@@ -12,7 +12,7 @@ Its possible to use the current installation script for upgrade. But its necessa
 * Add UMobile link in the case when there isn't any discovered device in the discovery manager.
 * Add GMAIL and generic SMTP account validation in the settings and in the wizard.
 * Add badge with count of unauthorized devices to left menu.
-* Add statistics for switch p'orts.
+* Add charts for switch ports.
 * Add ONU distance to ONU list.
 * Add quarter and year charts.
 * Add PPPoE unique ID validation.
@@ -40,7 +40,7 @@ Its possible to use the current installation script for upgrade. But its necessa
 * Persistent docker-compose configuration (environment variables).
 
 ### Fixed
-* **Fix stability of devices connection (FW 1.9.6alpha2).**
+* **Fix stability of devices connection (new FW 1.9.6alpha2).**
 * Fix site and endpoint status update.
 * Fix refresh interfaces UI.
 * Fix upload of huge images.
