@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.7.13 (TBD)
+## 0.7.13 (2017-03-16)
 
-Its possible to use the current installation script for upgrade. But its necessary to set your custom attributes again (if you defined for example –http-port –https-port etc). They will be saved and it will not be necessary to set them again from the next version.
+Its possible to use the current installation script for upgrade. But it's necessary to set your custom attributes again (if you defined for example –http-port –https-port etc.). They will be saved and it will not be necessary to set them again from the next version.
 
 ### Added
 * **Add discovery manager v1 (supports local networks).**
