@@ -1,5 +1,52 @@
 # Changelog
 
+## 0.7.14 (2017-04-??)
+
+### Added
+* Add list of routes for EdgeRouter (static, OSPF etc.)
+* Add Firmware manager which supports: manual FW upload, delete FW and apply FW (this version supports only ONU). It's possible to download minimal FW for UNMS from Firmware manager.
+* Add Task manager (the first supported task is the FW upgrade)
+* Add UNMS update from UNMS (it will be possible to install the new UNMS with "one click")
+* Add flag to header when UNMS is in the presentation/demo mode
+* Add OLT bridge port editor
+* Add ONU restart action
+* Add validations to Vlan editor
+* Add PPPOE interfaces statistics
+
+### Changed
+* Extend ONU detail panel (tx rate, rx rate, voltage, bias current, distance)
+* Extend ONU header (OLT link)
+* Extend image upload validations
+* Unify wrong login/password messages
+* Change toasters order (notifications)
+* Update statistics performance
+* Show addresses for PPPOE interfaces
+* Update SMTP validations and error notifications
+* Update refresh of sites/endpoints state (new inactive state)
+
+### Fixed
+* Fix OLT SFP editor
+* Fix ONU authorization loglines
+* Fix ONU list filters
+* Fix ONU list port selector
+* Fix ONU outages logging
+* Fix ONU lastSeen 
+* Fix NTP server editor
+* Fix UNMS setup forms validations
+* Fix visibility of FW upgrade button
+* Fix device uptime
+* Fix site editor (address)
+* Fix creating PPPOE and VLAN interfaces
+* Fix installation on unsupported OS
+* Fix device connection in Discovery manager
+* Fix interfaces selection in DHCP editor
+* Fix sorting of DHCP leases
+* Fix ER8 logo
+* Fix password change workflow
+* Fix various bugs in UNMS installations script
+
+* **new-admin-form:** fix new admin form validation 
+
 ## 0.7.13 (2017-03-16)
 
 Its possible to use the current installation script for upgrade. But it's necessary to set your custom attributes again (if you defined for example –http-port –https-port etc.). They will be saved and it will not be necessary to set them again from the next version.
