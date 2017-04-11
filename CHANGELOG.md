@@ -45,8 +45,6 @@
 * Fix password change workflow
 * Fix various bugs in UNMS installations script
 
-* **new-admin-form:** fix new admin form validation 
-
 ## 0.7.13 (2017-03-16)
 
 Its possible to use the current installation script for upgrade. But it's necessary to set your custom attributes again (if you defined for example –http-port –https-port etc.). They will be saved and it will not be necessary to set them again from the next version.
