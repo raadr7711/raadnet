@@ -2,8 +2,10 @@
 
 ## 0.7.14 (2017-04-??)
 
+Important note: We will release new UNMS version 0.7.15 approximately in one week after 0.7.14. This version will include Two-factor Authentication and it will be possible to upgrade FW of any device. We would like to use this version for test of "One click" upgrade of UNMS from UNMS which is implemented in version 0.7.14.
+
 ### Added
-* Add list of routes for EdgeRouter (static, OSPF etc.)
+* Add list of routes for EdgeRouter (static, OSPF etc. + static routes editor)
 * Add Firmware manager which supports: manual FW upload, delete FW and apply FW (this version supports only ONU). It's possible to download minimal FW for UNMS from Firmware manager.
 * Add Task manager (the first supported task is the FW upgrade)
 * Add UNMS update from UNMS (it will be possible to install the new UNMS with "one click")
@@ -12,6 +14,7 @@
 * Add ONU restart action
 * Add validations to Vlan editor
 * Add PPPOE interfaces statistics
+* Add loglines when device is explicitly restarted by user
 
 ### Changed
 * Extend ONU detail panel (tx rate, rx rate, voltage, bias current, distance)
@@ -31,6 +34,7 @@
 * Fix ONU list port selector
 * Fix ONU outages logging
 * Fix ONU lastSeen 
+* Fix ONU interface speed after FW upgrade
 * Fix NTP server editor
 * Fix UNMS setup forms validations
 * Fix visibility of FW upgrade button
@@ -44,6 +48,9 @@
 * Fix ER8 logo
 * Fix password change workflow
 * Fix various bugs in UNMS installations script
+* Fix UNMS discovery collision with UniFi devices
+* Fix invalid default IP range in Discovery manager
+
 
 ## 0.7.13 (2017-03-16)
 
