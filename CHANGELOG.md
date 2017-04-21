@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.7.14 (2017-04-??)
+## 0.7.14 (2017-04-21)
 
-Important note: We will release new UNMS version 0.7.15 approximately in one week after 0.7.14. This version will include Two-factor Authentication and it will be possible to upgrade FW of any device. We would like to use this version for test of "One click" upgrade of UNMS from UNMS which is implemented in version 0.7.14.
+Important note: We will release next UNMS version 0.7.15 approximately in one week after 0.7.14. This version will include Two-factor Authentication and it will be possible to upgrade FW of any supported device. We would like to use this version for test of "One click" upgrade of UNMS from UNMS which is implemented in version 0.7.14.
 
 ### Added
 * Add list of routes for EdgeRouter (static, OSPF etc. + static routes editor)

@@ -3,14 +3,23 @@ set -o nounset
 set -o errexit
 set -o pipefail
 
-repo="https://raw.githubusercontent.com/Ubiquiti-App/UNMS/master"
 temp="/tmp/unms-install"
 
 args="$*"
 version=""
+branch="master"
 
-if [[ "$args" =~ ^[0-9] ]]; then
-  read -r version args <<< "$args"
+branchRegex=" --branch ([^ ]+)"
+if [[ "$args" =~ $branchRegex ]]; then
+  branch="${BASH_REMATCH[1]}"
+fi
+echo branch="$branch"
+
+repo="https://raw.githubusercontent.com/Ubiquiti-App/UNMS/${branch}"
+
+versionRegex=" --version ([^ ]+)"
+if [[ "$args" =~ $versionRegex ]]; then
+  version="${BASH_REMATCH[1]}"
 fi
 
 if [ -z "$version" ]; then
@@ -19,18 +28,15 @@ if [ -z "$version" ]; then
     exit 1
   fi
 fi
-
 echo version="$version"
-echo args="$args"
 
 rm -rf $temp
 if ! mkdir $temp; then
   echo "Failed to create temporary directory"
   exit 1
 fi
+
 cd $temp
-
-
 echo "Downloading installation package for version $version."
 if ! curl -sS "$repo/unms-$version.tar.gz" | tar xz; then
   echo "Failed to download installation package"
@@ -38,7 +44,7 @@ if ! curl -sS "$repo/unms-$version.tar.gz" | tar xz; then
 fi
 
 chmod +x install-full.sh
-./install-full.sh --version "$version" $args
+./install-full.sh $args --version "$version"
 
 cd ~
 if ! rm -rf $temp; then
