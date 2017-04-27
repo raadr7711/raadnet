@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.7.15 (2017-04-??)
+
+### Added
+* Add Two-factor Authentication
+* Add EdgeRouter FW upgrade to FW manager and Task manager
+* Add download image button to gallery
+
+### Changed
+* Support nonstandard FW version (X.Y.Z.W etc.)
+* Change spinner to progress bar for FW upgrade
+* Run fluentd under UNMS user
+* Unify sites/endpoints mock data with devices mock data
+* Allow UNMS upgrade with skipped version
+* Show UNMS update progress to all users in a footer
+* Temporarly hide BGP and ISIS routes filer
+
+### Fixed
+* Fix enabling user alerts
+* Fix rendering DHCP leases
+* Fix config change log lines
+* Fix device reappear log lines and alerts
+* Fix multiple ONU upgrade
+* Fix interface speed label
+
+
 ## 0.7.14 (2017-04-21)
 
 Important note: We will release next UNMS version 0.7.15 approximately in one week after 0.7.14. This version will include Two-factor Authentication and it will be possible to upgrade FW of any supported device. We would like to use this version for test of "One click" upgrade of UNMS from UNMS which is implemented in version 0.7.14.
