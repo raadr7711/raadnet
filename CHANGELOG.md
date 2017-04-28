@@ -14,7 +14,8 @@
 * Unify sites/endpoints mock data with devices mock data
 * Allow UNMS upgrade with skipped version
 * Show UNMS update progress to all users in a footer
-* Temporarly hide BGP and ISIS routes filer
+* Temporarily hide BGP and ISIS routes filer
+* Update devices icon
 
 ### Fixed
 * Fix enabling user alerts
@@ -22,8 +23,11 @@
 * Fix config change log lines
 * Fix device reappear log lines and alerts
 * Fix multiple ONU upgrade
+* Fix rendering ONU signal
 * Fix interface speed label
-
+* Fix discovery for EdgeRouters connected via switch port
+* Fix device name change in discovery
+* Fix EdgeRouter switch VLAN editor
 
 ## 0.7.14 (2017-04-21)
 
