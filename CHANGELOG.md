@@ -28,6 +28,7 @@
 * Fix discovery for EdgeRouters connected via switch port
 * Fix device name change in discovery
 * Fix EdgeRouter switch VLAN editor
+* Fix missing VLAN statistics and graphs
 
 ## 0.7.14 (2017-04-21)
 
