@@ -10,7 +10,7 @@ version=""
 branch="master"
 
 branchRegex=" --branch ([^ ]+)"
-if [[ "$args" =~ $branchRegex ]]; then
+if [[ " $args" =~ $branchRegex ]]; then
   branch="${BASH_REMATCH[1]}"
 fi
 echo branch="$branch"
@@ -18,13 +18,14 @@ echo branch="$branch"
 repo="https://raw.githubusercontent.com/Ubiquiti-App/UNMS/${branch}"
 
 versionRegex=" --version ([^ ]+)"
-if [[ "$args" =~ $versionRegex ]]; then
+if [[ " $args" =~ $versionRegex ]]; then
   version="${BASH_REMATCH[1]}"
 fi
 
 if [ -z "$version" ]; then
-  if ! version=$(curl -fsS "$repo/latest-version"); then
-    echo "Failed to obtain latest version info"
+  latestVersionUrl="$repo/latest-version"
+  if ! version=$(curl -fsS "${latestVersionUrl}"); then
+    echo "Failed to obtain latest version info from $latestVersionUrl"
     exit 1
   fi
 fi
@@ -38,8 +39,9 @@ fi
 
 cd $temp
 echo "Downloading installation package for version $version."
-if ! curl -sS "$repo/unms-$version.tar.gz" | tar xz; then
-  echo "Failed to download installation package"
+packageUrl="$repo/unms-$version.tar.gz"
+if ! curl -sS "${packageUrl}" | tar xz; then
+  echo "Failed to download installation package ${packageUrl}"
   exit 1
 fi
 
