@@ -4,9 +4,9 @@
 
 ### Added
 * **Discovery can find all AirMAX devices.**
-* Discovery can connect any AC AirMAX device. This feature requires alpha FW **8.1.3-alpha-unms** which is available on PM request.
+* Discovery can connect any AC AirMAX device. This feature requires alpha FW **8.1.3-alpha2-unms** which is available on PM request.
 * Screen with logs for AC AirMAX devices.
-* Basic statistics for AC AirMAX devices (CPU, MEM, signal).
+* Basic statistics for AC AirMAX devices (CPU, MEM, ping, signal).
 * **Add OSPF editor for EdgeRouters.**
 * UNMS includes stable FW **1.9.1.1unms** and unstable FW **1.9.7alpha3** for EdgeRouters.
 * Discovery FW upgrade supports stable/unstable FW selection.
