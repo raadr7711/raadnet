@@ -1,6 +1,68 @@
 # Changelog
 
-## 0.7.15 (2017-05-??)
+## 0.7.17 (2017-05-??)
+
+### Added
+* **Discovery can find all AirMAX devices.**
+* Discovery can connect any AC AirMAX device. This feature requires alpha FW **8.1.3-alpha-unms** which is available on PM request.
+* Screen with logs for AC AirMAX devices.
+* Basic statistics for AC AirMAX devices (CPU, MEM, signal).
+* **Add OSPF editor for EdgeRouters.**
+* UNMS includes stable FW **1.9.1.1unms** and unstable FW **1.9.7alpha3** for EdgeRouters.
+* Discovery FW upgrade supports stable/unstable FW selection.
+* Simple one click FW upgrade to the latest FW version.
+* Add reset button for interfaces statistics.
+* Add RX bytes and TX bytes columns to interface list.
+* Add loglines for FW upgrade process.
+* Add FW upgrade button to maintenance section.
+* Add timezone selector to UNMS installation wizard and configuration.
+* Add ONU signal chart.
+* Add external password reset script.
+* Add file upload progress bar to gallery.
+* Add image zoom to gallery.
+* Add support for separate WS (inform) and GUI/API ports
+
+### Changed
+* Console is renamed to shell.
+* Connection string is renamed to UNMS key.
+* Device popup includes QR code with UNMS key for UMobile.
+* Device popup includes form for device quick connect.
+* UNMS backup includes images.
+* UNMS backup includes devices configurations.
+* UNMS backup includes backup version for compatibility check.
+* Limit public IP ranges to 24 mask length.
+* FW manager doesn't save duplicate firmwares.
+* Unify firmware version labels.
+* Password length is increased to 8 chars.
+* Password input includes advanced password strength checker with recommendations.
+* Improve SMTP settings errors and configuration.
+* Use correct CN in self-signed certificate.
+* Allow routing to any interface.
+* Display progress bar for tasks in the Task manager.
+* Wait 10 seconds before reloading page after UNMS update.
+* Add common security HTTP headers.
+* Show correct list of interfaces in DHCP editor.
+* Hide delete button for dynamic lease.
+
+### Fixed
+* Fix timezone list for EdgeRouters.
+* Fix firmware manager page reload.
+* Fix ordering of alpha/beta firmwares.
+* Fix unbound variable in installation script.
+* Fix EdgeRouter PRO interfaces.
+* Fix OLT/ONU last seen attribute.
+* Fix support info generator.
+* Fix pagination in all popovers.
+* Fix interfaces speed formatting.
+* Fix third screen of UNMS installation wizard.
+* Fix settings menu on small screens.
+
+## 0.7.16 (2017-05-03)
+ 
+### Fixed
+* Fix cron mailing itself every one minute. 
+
+## 0.7.15 (2017-05-03)
 
 ### Added
 * Add Two-factor Authentication
