@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.17 (2017-05-??)
+## 0.7.17 (2017-05-26)
 
 ### Added
 * **Discovery can find all AirMAX devices.**
