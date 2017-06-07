@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.7.18 (2017-06-07)
+
+### Added
+* *Compatibility with EdgeRouter FW 1.9.7-beta1*. Full support for V2 communication protocol.
+* Add Refresh button for device unique AES key.
+* Table columns editor.
+* New interface id/name column.
+* Graph for airMax bridge interface.
+* *UNMS communication frequency profiles (high/low/medium).* This feature requires FW 1.9.7beta1 for EdgeRouters and FW 1.0.0 for OLT. We will add communication compression and custom settings for each device in the next UNMS version. 
+
+### Changed
+* Delete all dangling images after installation.
+* Improve cleanup of old docker images.
+* Restart docker container if webserver fails to start.
+* Improve internal UNMS event queue.
+* FW OLT 1.0.0.
+* FW EdgeRouter 1.9.7-beta1.
+
+### Fixed
+* Fix graphs rendering and data processing (missing segments).
+* Fix graph data removal for deleted devices.
+* Fix OSPF editor bugs.
+* Fix FW upgrade process for EdgeRouters.
+* Fix ONU firmware version recognition.
+* Fix EdgeRouter firmware version recognition.
+* Fix FirmwareManager filter counters.
+* Fix empty hostname (UNMS uses model name instead).
+* Fix UNMS restore process (don't remove manually uploaded FW).
+* Fix reported speed on OLT pon/sfp/bridge ports.
+
 ## 0.7.17 (2017-05-26)
 
 ### Added
