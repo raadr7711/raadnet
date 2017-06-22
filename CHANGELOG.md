@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.8.0 (2017-06-22)
+
+### Added
+* Add FW airMAX 8.3.
+* Add support for full discovery of 100.64.0.0/10 IP ranges.
+* Add device specific UNMS configuration (ping and data profile).
+* Add basic support for airMAX M devices (connect, FW upgrade, alpha FW only via PM request).
+* Add interface description column.
+* Add list of ONU profiles.
+* Add advanced UNMS configuration section (control UNMS self signed certificate flag).
+* Add airMAX remote signal statistics.
+* Add unms.ubnt.com link.
+
+### Changed
+* Don't request client certificate.
+* Move logic from installation script to docker entrypoint (simpler install process without install script).
+* Remove old FW 1.9.7-beta1.
+
+### Fixed
+* Fix UNMS reload after UNMS backup restore.
+* Fix UNMS domain editor.
+* Fix OLT graphs.
+* Fix ONU and OLT connect status update.
+* Fix ONU FW upgrade.
+* Fix airMAX connect via discovery.
+* Fix airMAX FW version parsing
+* Fix airMAX signal statistics
+* Fix EdgeRouter interface screen (VLAN).
+* Fix EdgeRouter combo with interfaces in DHCP editor.
+* Fix EdgeRouter switch VLAN flags.
+* Fix reconnection via discovery for V2 devices.
+* Fix FW sorting.
+* Fix WS port settings after UNMS update.
+* Fix docker entrypoint bug when data/cert is a symlink.
+* Fix support info download.
+
 ## 0.7.18 (2017-06-07)
 
 ### Added
@@ -417,22 +453,3 @@ Its possible to use the current installation script for upgrade. But it's necess
 
 ### Outages
 * List of all outages
-
-# Versioning
-* 0.7.x - Alpha
-* 0.8.x - Beta
-* 0.9.x - Release Candidate
-* 1.0.x - Production Release
-
-# Planned key features for 1.0.0
-* **EdgeRouter** - Routing editor
-* **EdgeRouter** - QoS editor
-* **EdgeRouter** - Firewall editor
-* **EdgeSwitch** - Full support
-* **UNMS** - Full-text search
-* **UNMS** - Network dashboard
-* **UNMS** - Devices discovery manager
-* **UNMS** - Firmwares upgrade manager
-* **UNMS** - Application automatic upgrade
-* **UNMS** - SSO support for UBNT account
-* **UNMS** - Remote device CLI in UNMS UI
