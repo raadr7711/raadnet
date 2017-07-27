@@ -1,5 +1,74 @@
 # Changelog
 
+## 0.9.0 (2017-07-27)
+
+### Added 
+* Add UNMS API documentation which is accessible via link https://YOUR-UNMS_HOSTNAME/api-docs.
+* Add IP addresses in device list (EdgeRouters and OLT, airMAX devices will have IP address in 0.10.0).
+* Add support for gathering stats for all airMAX interfaces.
+* Add alert and log line when device can’t connect due to bad AES key.
+* Add domain and UniFi controller to DHCP editor.
+* Add ONU name validation.
+* Add GPS inputs to site edit panels.
+* Add height and elevation for site and endpoint.
+* Add Inactive value to sites/endpoint status filter.
+* Add hostname input to UNMS wizard.
+* Add support for UNMS containers custom subnet.
+* Add support for OLT/ONU profiles.
+* Add support for OLT/ONU policies.
+* Add RabbitMQ container. UNMS will utilise it more in upcoming releases.
+
+### Changed
+* Upgrade UNMS statistics with highcharts components.
+* Installation script checks that all required tools are installed before installing UNMS.
+* Automatically create UNMS backup before installation of new UNMS version. Backup is available in file: /home/unms/data/unms-backups/update-backup.tar.gz.
+* Optimise loading UNMS state (unread logs, unread outages and unregistered devices counts).
+* Improve add device popup.
+* Improve ONU configuration error handlers.
+* Allow search for compact semver e.g. 1.2.3alpha3.
+* Optimize handling of device outages. 
+* Don’t request a new certificate on every boot.
+* Add UTC timezone to EdgeRouters timezones.
+* Update community link to Beta.
+* Don’t allow localhost as UNMS hostname.
+* Remove checkbox for advanced settings. It will be always visible.
+* Bundle EdgeRouter FW 1.9.7.
+* Remove docker containers memory limits.
+
+### Fixed
+* Fix signal sorting.
+* Fix device reconnection to UNMS.
+* Fix IP address sorting.
+* Fix IP address editation in EdgeRouter DHCP section.
+* Fix error propagation from EdgeRouters.
+* Fix DHCP leases sorting.
+* Fix DHCP leases rendering. 
+* Fix recognition of minimal airMAX FW. 
+* Fix airMAX M connect when UI is not in English.
+* Fix airMAX FW comparison in FW upgrade popup.
+* Fix Discovery warning when IP range warning is shown incorrectly.
+* Fix discovery FW upgrade for airMAX CS firmware.
+* Fix UNMS link in emails.
+* Fix FW selecting and sorting in FW manager. 
+* Fix FW upgrade with custom inform port.
+* Fix FW download during UNMS install.
+* Fix images border in gallery.
+* Fix device gateway update.
+* Fix installation process, don’t display an error when there are no docker images to delete.
+* Fix connection string when default ports are occupied.
+* Fix devices links in outages and logs popups.
+* Fix user re-invite process.
+* Fix unnecessary API calls for OSPF.
+* Fix OSPF configuration validations.
+* Fix stopping outage on device delete.
+* Fix restoring from UNS backup.
+* Fix ssl-domain setup when SSL certificate changes.
+* Fix site status sync with devices status.
+* Fix user unique email validation.
+* Fix Discovery IP ranges validation.
+* Fix interfaces log lines.
+* Fix connecting EdgeRouters with bridge.
+
 ## 0.8.0 (2017-06-22)
 
 ### Added
