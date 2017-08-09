@@ -1,18 +1,20 @@
 outdir=~unms/supportinfo
 outfile=~unms/supportinfo.tar.gz
 
-if [[ "$@" == "--restart" ]]; then
-    echo "Restarting UNMS..."
-    docker-compose -p unms -f ~unms/app/docker-compose.yml down
-    docker-compose -p unms -f ~unms/app/docker-compose.yml up -d
-    echo "Waiting for 30s..."
-    sleep 30
-fi
-
-echo "Gathering support info..."
+args="$*"
 
 rm -rf "${outdir}"
 mkdir -p "${outdir}"
+
+if [[ " $args" =~ " --restart" ]]; then
+  echo "Restarting UNMS..."
+  docker-compose -p unms -f ~unms/app/docker-compose.yml down 2>"${outdir}/restart.txt"
+  docker-compose -p unms -f ~unms/app/docker-compose.yml up -d 2>>"${outdir}/restart.txt"
+  echo "Waiting for 30s..."
+  sleep 30
+fi
+
+echo "Gathering support info..."
 
 {
   docker -v
@@ -37,8 +39,11 @@ cp ~unms/data/update/* "${outdir}/"
 
 find ~unms/data/logs/* -type f -mtime -1 -exec cp {} "${outdir}/" \;
 
-tar -zcf "${outfile}" -C "${outdir}" .
-chown unms "${outfile}"
-rm -rf "${outdir}"
-
-echo Saved to "${outfile}"
+if [[ " $args" =~ " --debug" ]]; then
+  echo Saved to "${outdir}"
+else
+  tar -zcf "${outfile}" -C "${outdir}" .
+  chown unms "${outfile}"
+  rm -rf "${outdir}"
+  echo Saved to "${outfile}"
+fi
