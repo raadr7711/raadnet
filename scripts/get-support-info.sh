@@ -36,6 +36,7 @@ docker ps -a --format "{{ .Names }}" --filter "name=unms" | xargs docker inspect
 docker network ls --format "{{ .Name }}" --filter "name=unms" | xargs docker network inspect >"${outdir}/networks.txt"
 
 cp ~unms/data/update/* "${outdir}/"
+cp ~unms/app/unms.conf "${outdir}/"
 
 find ~unms/data/logs/* -type f -mtime -1 -exec cp {} "${outdir}/" \;
 
