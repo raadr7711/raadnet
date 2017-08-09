@@ -30,6 +30,10 @@ echo "Gathering support info..."
   docker exec unms ps aux
   echo
   docker exec unms netstat -l
+  echo
+  ls -la /home/unms/app
+  echo
+  ls -la /home/unms/data
 } >"${outdir}/info.txt"
 
 docker ps -a --format "{{ .Names }}" --filter "name=unms" | xargs docker inspect >"${outdir}/containers.txt"
