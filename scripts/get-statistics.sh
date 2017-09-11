@@ -6,12 +6,12 @@ set -o pipefail
 outdir=~unms/device-statistics
 outfile=~unms/device-statistics.tar.gz
 
-deviceId="$1"
-
-if [ -z "${deviceId}" ]; then
+if [ -z "$1" ]; then
   echo "Usage: get-statistics.sh <deviceId>"
   exit 1
 fi
+
+deviceId="$1"
 
 mkdir -p "${outdir}"
 keys=( $(docker exec -t unms-redis redis-cli KEYS statistics\* | grep "${deviceId}" | cut -d\" -f2) )
