@@ -6,7 +6,7 @@ set -o pipefail
 outdir=~unms/device-statistics
 outfile=~unms/device-statistics.tar.gz
 
-if [ -z "$1" ]; then
+if [ $# -eq 0 ]; then
   echo "Usage: get-statistics.sh <deviceId>"
   exit 1
 fi
