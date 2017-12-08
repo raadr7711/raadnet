@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+set -o nounset
+set -o errexit
+set -o pipefail
+
+export PATH="${PATH}:/usr/local/bin"
+export COMPOSE_PROJECT_NAME="unms"
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+APP_DIR="${SCRIPT_DIR}"
+DATA_DIR=$( readlink -f ${APP_DIR}/../data )
+DOCKER_COMPOSE_FILENAME="docker-compose.yml"
+DOCKER_COMPOSE_FILE="${APP_DIR}/${DOCKER_COMPOSE_FILENAME}"
+
+if [ ! -f "${DOCKER_COMPOSE_FILE}" ]; then
+  echo >&2 "Docker Compose file '${DOCKER_COMPOSE_FILE}' not found."
+  exit 1
+fi
+
+isRunning() {
+  status=$(docker-compose ps -q) || {
+    echo "Failed to determine UNMS status."
+    exit 1
+  }
+
+  if [ "${status}" = "" ]; then
+    return 1
+  else
+    return 0
+  fi
+}
+
+start() {
+  echo "Starting UNMS..."
+  if ! docker-compose up -d; then
+    echo >&2 "Failed to start UNMS."
+    exit 1
+  fi
+  echo "UNMS started."
+}
+
+stop() {
+  echo "Stopping UNMS..."
+  if ! docker-compose down; then
+    echo >&2 "Failed to stop UNMS."
+    exit 1
+  fi
+  echo "UNMS stopped."
+}
+
+
+(
+  cd "${APP_DIR}"
+
+  if [ "$*" = "stop" ]; then
+    if isRunning; then
+      stop
+    else
+      echo "UNMS is not running"
+    fi
+    echo "To completely remove all UNMS data, please delete directories ${DATA_DIR} and ${APP_DIR}"
+    echo "You may also wish to remove the UNMS user account."
+    exit 0
+  fi
+
+  if [ "$*" = "start" ]; then
+    if isRunning; then
+      echo "UNMS is already running"
+    else
+      start
+    fi
+    exit 0
+  fi
+
+  if [ "$*" = "restart" ]; then
+    if isRunning; then
+      stop
+    fi
+    start
+    exit 0
+  fi
+
+  echo "Usage: unms-cli.sh [start|stop|restart]"
+  exit 0
+)
