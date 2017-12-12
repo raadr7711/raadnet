@@ -18,6 +18,7 @@ APP_DIR="${HOME_DIR}/app"
 DATA_DIR="${HOME_DIR}/data"
 CONFIG_DIR="${APP_DIR}/conf"
 CONFIG_FILE="${APP_DIR}/unms.conf"
+DOCKER_COMPOSE_INSTALL_PATH="/usr/local/bin"
 DOCKER_COMPOSE_FILENAME="docker-compose.yml"
 DOCKER_COMPOSE_FILE="${APP_DIR}/${DOCKER_COMPOSE_FILENAME}"
 DOCKER_COMPOSE_TEMPLATE_FILENAME="docker-compose.yml.template"
@@ -28,7 +29,6 @@ PREREQUISITES=(
   "curl|curl"
   "sed|sed"
   "envsubst|gettext-base"
-  "nc|netcat"
 )
 
 if [ "${SCRIPT_DIR}" = "${APP_DIR}" ]; then
@@ -368,6 +368,25 @@ check_system() {
       fi
       ;;
 
+      *coreos)
+      if [ -z "${dist_version:-}" ] && [ -r /etc/lsb-release ]; then
+          dist_version="$(. /etc/lsb-release && echo "${DISTRIB_RELEASE:-}")"
+      fi
+      if version_equal_or_newer "${dist_version}" "1465.6.0"; then
+        if ! echo $PATH | grep -q "/opt/bin" ; then
+            export PATH="/opt:$PATH"
+        fi
+
+        if [ ! -d /opt/bin ]; then
+          mkdir -p /opt/bin
+        fi
+
+        DOCKER_COMPOSE_INSTALL_PATH="/opt/bin"
+
+        supported_distro=true
+      fi
+      ;;
+
       *)
       if [ -z "${dist_version:-}" ] && [ -r /etc/os-release ]; then
         dist_version="$(. /etc/os-release && echo "${VERSION_ID:-}")"
@@ -375,6 +394,11 @@ check_system() {
       ;;
 
   esac
+
+  if [ ! which nc > /dev/null 2>&1 ] && [ ! which curl > /dev/null 2>&1 ] && [ ! which wget > /dev/null 2>&1 ]; then
+    echo >&2 "This script requires eithr 'nc', 'curl' or 'wget'. Please install try again. Aborting."
+    exit 1
+  fi
 
   for prerequisite in "${PREREQUISITES[@]}"; do
     IFS=\| read -r preCommand prePackage <<< "${prerequisite}"
@@ -444,8 +468,8 @@ install_docker() {
 install_docker_compose() {
   if ! which docker-compose > /dev/null 2>&1; then
     echo "Download and install Docker compose."
-    curl -sL "https://github.com/docker/compose/releases/download/1.9.0/docker-compose-$(uname -s)-$(uname -m)" > /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
+    curl -sL "https://github.com/docker/compose/releases/download/1.9.0/docker-compose-$(uname -s)-$(uname -m)" > ${DOCKER_COMPOSE_INSTALL_PATH}/docker-compose
+    chmod +x ${DOCKER_COMPOSE_INSTALL_PATH}/docker-compose
   fi
 
   if ! which docker-compose > /dev/null 2>&1; then
@@ -465,11 +489,11 @@ install_docker_compose() {
     echo
     if [[ ${REPLY} =~ ^[Yy]$ ]]
     then
-      if ! curl -sL "https://github.com/docker/compose/releases/download/1.9.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose; then
+      if ! curl -sL "https://github.com/docker/compose/releases/download/1.9.0/docker-compose-$(uname -s)-$(uname -m)" -o ${DOCKER_COMPOSE_INSTALL_PATH}/docker-compose; then
         echo >&2 "Docker compose upgrade failed. Aborting."
         exit 1
       fi
-      chmod +x /usr/local/bin/docker-compose
+      chmod +x ${DOCKER_COMPOSE_INSTALL_PATH}/docker-compose
     else
       exit 1
     fi
@@ -643,7 +667,7 @@ build_docker_images() {
   cd "${SCRIPT_DIR}"
 
   if [ -f "${DOCKER_COMPOSE_FILENAME}" ]; then
-    if ! /usr/local/bin/docker-compose build; then
+    if ! docker-compose build; then
       echo "Failed to build docker images"
       exit 1
     fi
@@ -763,26 +787,25 @@ EOL
 }
 
 setup_auto_update() {
-  if crontab -l -u "${USERNAME}"; then
-    if ! crontab -u "${USERNAME}" -r; then
-      echo >&2 "Failed to clean crontab"
-      exit 1
-    fi
-  fi
 
   if [ "$NO_AUTO_UPDATE" = true ]; then
     echo "Skipping auto-update setup."
   else
     updateScript="${APP_DIR}/update.sh";
+
     if ! chmod +x "${updateScript}"; then
       echo >&2 "Failed to setup auto-update script"
       exit 1
     fi
-    if ! (crontab -l -u "${USERNAME}"; echo "* * * * * ${updateScript} --cron > /dev/null 2>&1 || true") | crontab -u "${USERNAME}" -; then
-      echo >&2 "Failed to setup auto-update cron job"
-      exit 1
+
+    if [ -d /etc/cron.d ]; then
+      echo "* * * * * ${USERNAME} ${updateScript} --cron > /dev/null 2>&1 || true" > /etc/cron.d/unms-update
+    else
+      echo >&2 "WARNING: Failed to enable auto update as /etc/cron.d folder is not present. Is crontab missing?"
     fi
+
   fi
+
 }
 
 delete_old_firmwares() {
@@ -868,7 +891,15 @@ confirm_success() {
   do
     sleep 3s
     unmsRunning=true
-    nc -z 127.0.0.1 "${HTTPS_PORT}" && break
+
+    if (which nc > /dev/null 2>&1); then
+      nc -z 127.0.0.1 "${HTTPS_PORT}" && break
+    elif (which curl > /dev/null 2>&1); then
+      curl -skL "https://127.0.0.1:${HTTPS_PORT}" > /dev/null && break
+    elif (which wget > /dev/null 2>&1); then
+      wget -q --no-check-certificate "https://127.0.0.1:${HTTPS_PORT}" && break
+    fi
+
     echo "."
     unmsRunning=false
     n=$((n+1))
