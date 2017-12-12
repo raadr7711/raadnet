@@ -395,8 +395,8 @@ check_system() {
 
   esac
 
-  if [ ! which nc > /dev/null 2>&1 ] && [ ! which curl > /dev/null 2>&1 ] && [ ! which wget > /dev/null 2>&1 ]; then
-    echo >&2 "This script requires eithr 'nc', 'curl' or 'wget'. Please install try again. Aborting."
+  if [ ! which curl > /dev/null 2>&1 ] && [ ! which wget > /dev/null 2>&1 ]; then
+    echo >&2 "This script requires eithr 'curl' or 'wget'. Please install try again. Aborting."
     exit 1
   fi
 
@@ -802,6 +802,7 @@ setup_auto_update() {
       echo "* * * * * ${USERNAME} ${updateScript} --cron > /dev/null 2>&1 || true" > /etc/cron.d/unms-update
     else
       echo >&2 "WARNING: Failed to enable auto update as /etc/cron.d folder is not present. Is crontab missing?"
+      exit 1
     fi
 
   fi
@@ -892,9 +893,7 @@ confirm_success() {
     sleep 3s
     unmsRunning=true
 
-    if (which nc > /dev/null 2>&1); then
-      nc -z 127.0.0.1 "${HTTPS_PORT}" && break
-    elif (which curl > /dev/null 2>&1); then
+    if (which curl > /dev/null 2>&1); then
       curl -skL "https://127.0.0.1:${HTTPS_PORT}" > /dev/null && break
     elif (which wget > /dev/null 2>&1); then
       wget -q --no-check-certificate "https://127.0.0.1:${HTTPS_PORT}" && break
