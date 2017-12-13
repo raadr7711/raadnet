@@ -796,7 +796,7 @@ setup_auto_update() {
     if [ -d /etc/cron.d ]; then
       echo "* * * * * ${USERNAME} ${updateScript} --cron > /dev/null 2>&1 || true" > /etc/cron.d/unms-update
     else
-      echo >&2 "WARNING: Failed to enable auto update as /etc/cron.d folder is not present. Is crontab missing?"
+      echo >&2 "Failed to enable auto update as /etc/cron.d folder is not present. Is crontab missing?"
       exit 1
     fi
 
