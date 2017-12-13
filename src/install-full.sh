@@ -395,11 +395,6 @@ check_system() {
 
   esac
 
-  if [ ! which curl > /dev/null 2>&1 ] && [ ! which wget > /dev/null 2>&1 ]; then
-    echo >&2 "This script requires eithr 'curl' or 'wget'. Please install try again. Aborting."
-    exit 1
-  fi
-
   for prerequisite in "${PREREQUISITES[@]}"; do
     IFS=\| read -r preCommand prePackage <<< "${prerequisite}"
     command -v "${preCommand}" >/dev/null 2>&1 || {
@@ -892,13 +887,7 @@ confirm_success() {
   do
     sleep 3s
     unmsRunning=true
-
-    if (which curl > /dev/null 2>&1); then
-      curl -skL "https://127.0.0.1:${HTTPS_PORT}" > /dev/null && break
-    elif (which wget > /dev/null 2>&1); then
-      wget -q --no-check-certificate "https://127.0.0.1:${HTTPS_PORT}" && break
-    fi
-
+    curl -skL "https://127.0.0.1:${HTTPS_PORT}" > /dev/null && break
     echo "."
     unmsRunning=false
     n=$((n+1))
