@@ -796,8 +796,24 @@ setup_auto_update() {
     if [ -d /etc/cron.d ]; then
       echo "* * * * * ${USERNAME} ${updateScript} --cron > /dev/null 2>&1 || true" > /etc/cron.d/unms-update
     else
-      echo >&2 "Failed to enable auto update as /etc/cron.d folder is not present. Is crontab missing?"
-      exit 1
+      if [ -d /etc/systemd/system ]; then
+
+        echo "[Unit]\nDescription=Auto update UNMS\n\n[Service]\nUser=${USERNAME}\nType=oneshot\nExecStart=${updateScript} --cron" > /etc/systemd/system/unms-update.service
+        echo "[Unit]\nDescription=Run unms-update.service every minute\n\n[Timer]\nOnCalendar=*:0/1" > /etc/systemd/system/unms-update.timer
+
+        systemctl enable unms-update.service &&
+        systemctl enable unms-update.timer &&
+        systemctl start unms-update.timer
+
+        if [ $? -ne 0 ]; then
+          echo >&2 "Failed to enable systemd auto update timer and service"
+          exit 1
+        fi
+
+      else
+        echo >&2 "Failed to enable auto update. Crontab and systemd timers is not available."
+        exit 1
+      fi
     fi
 
   fi
