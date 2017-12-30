@@ -793,13 +793,28 @@ setup_auto_update() {
       exit 1
     fi
 
-    if [ -d /etc/cron.d ]; then
+    if [ -d /etc/cron.d ] && [ which crontab > /dev/null 2>&1 ]; then
       echo "* * * * * ${USERNAME} ${updateScript} --cron > /dev/null 2>&1 || true" > /etc/cron.d/unms-update
     else
-      if [ -d /etc/systemd/system ]; then
+      if [ -d /etc/systemd/system ] && [ which systemctl > /dev/null 2>&1 ]; then
 
-        echo "[Unit]\nDescription=Auto update UNMS\n\n[Service]\nUser=${USERNAME}\nType=oneshot\nExecStart=${updateScript} --cron" > /etc/systemd/system/unms-update.service
-        echo "[Unit]\nDescription=Run unms-update.service every minute\n\n[Timer]\nOnCalendar=*:0/1" > /etc/systemd/system/unms-update.timer
+cat > /etc/systemd/system/unms-update.service <<EOL
+[Unit]
+Description=Auto update UNMS
+
+[Service]
+User=${USERNAME}
+Type=oneshot
+ExecStart=${updateScript} --cron
+EOL
+
+cat > /etc/systemd/system/unms-update.timer <<EOL
+[Unit]
+Description=Run unms-update.service every minute
+
+[Timer]
+OnCalendar=*:0/1
+EOL
 
         systemctl enable unms-update.service &&
         systemctl enable unms-update.timer &&
@@ -811,7 +826,7 @@ setup_auto_update() {
         fi
 
       else
-        echo >&2 "Failed to enable auto update. Crontab and systemd timers is not available."
+        echo >&2 "Failed to enable auto update. UNMS requires either Crontab or systemd timers."
         exit 1
       fi
     fi
