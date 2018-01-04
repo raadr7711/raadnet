@@ -10,7 +10,16 @@ networks:
 services:
   fluentd:
     container_name: unms-fluentd
-    build: ./fluentd
+    build:
+      context: ./fluentd
+      dockerfile: Dockerfile
+      args:
+        - http_proxy=${http_proxy}
+        - HTTP_PROXY=${HTTP_PROXY}
+        - https_proxy=${https_proxy}
+        - HTTPS_PROXY=${HTTPS_PROXY}
+        - no_proxy=${no_proxy}
+        - NO_PROXY=${NO_PROXY}
     # if we specify an image name, docker-compose will try to pull it from repository
     # see https://github.com/docker/compose/issues/3673
     # image: ubnt/unms-fluentd:local
@@ -111,9 +120,24 @@ services:
       - PUBLIC_WS_PORT=${PUBLIC_WS_PORT}
       - HOST_TAG=${HOST_TAG}
       - BRANCH=${BRANCH}
+      - http_proxy=${http_proxy}
+      - HTTP_PROXY=${HTTP_PROXY}
+      - https_proxy=${https_proxy}
+      - HTTPS_PROXY=${HTTPS_PROXY}
+      - no_proxy=${no_proxy}
+      - NO_PROXY=${NO_PROXY}
 
   nginx:
-    build: ./nginx
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+      args:
+        - http_proxy=${http_proxy}
+        - HTTP_PROXY=${HTTP_PROXY}
+        - https_proxy=${https_proxy}
+        - HTTPS_PROXY=${HTTPS_PROXY}
+        - no_proxy=${no_proxy}
+        - NO_PROXY=${NO_PROXY}
     # if we specify an image name, docker-compose will try to pull it from repository
     # see https://github.com/docker/compose/issues/3673
     # image: ubnt/unms-nginx:local
@@ -127,6 +151,7 @@ services:
       - public
     volumes:
       ${CERT_DIR_MAPPING_NGINX}
+      ${USERCERT_DIR_MAPPING_NGINX}
     depends_on:
       - unms
       - fluentd
@@ -146,4 +171,3 @@ services:
       - UNMS_HTTP_PORT=${UNMS_HTTP_PORT}
       - UNMS_WS_PORT=${UNMS_WS_PORT}
       - PUBLIC_HTTPS_PORT=${PUBLIC_HTTPS_PORT}
-

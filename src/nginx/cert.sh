@@ -5,9 +5,29 @@ set -e
 echo "Running cert.sh $*"
 domain=$1
 
-# don't do anything if user provides a custom certificate
+# if custom certificate is used, make sure that it is up to date
 if [ ! -z "${SSL_CERT}" ]; then
-  echo "Custom certificate is set up, exiting"
+  CERT_FILE="/cert/live.crt"
+  KEY_FILE="/cert/live.key"
+  if ! [ "${CERT_FILE}" -ot "/usercert/${SSL_CERT}" ] \
+      && ! [ "${KEY_FILE}" -ot "/usercert/${SSL_CERT_KEY}" ] \
+      && ([ -z "${SSL_CERT_CA}" ] || ! [ "${CERT_FILE}" -ot "/usercert/${SSL_CERT_CA}" ]);
+    then
+    echo "Custom SSL certificate not changed, exiting"
+    exit 0
+  fi
+
+  if [ ! -z "${SSL_CERT_CA}" ]; then
+    echo "Joining '/usercert/${SSL_CERT}' and '/usercert/${SSL_CERT_CA}' into '${CERT_FILE}'"
+    cat "/usercert/${SSL_CERT}" "/usercert/${SSL_CERT_CA}" > /cert/live.crt
+  else
+    echo "Copying '/usercert/${SSL_CERT}' to '${CERT_FILE}'"
+    cp -a "/usercert/${SSL_CERT}" ${CERT_FILE}
+  fi
+  cp -a "/usercert/${SSL_CERT_KEY}" ${KEY_FILE}
+
+  echo "Reloading Nginx configuration"
+  sudo /usr/sbin/nginx -s reload
   exit 0
 fi
 

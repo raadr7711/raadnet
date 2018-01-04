@@ -69,6 +69,15 @@ if [ -z "${SSL_CERT}" ]; then
   fi
 else
   echo "Will use custom SSL certificate"
+  cp -a "/usercert/${SSL_CERT_KEY}" /cert/live.key
+  if [ -z "${SSL_CERT_CA}" ]; then
+    cp -a "/usercert/${SSL_CERT}" /cert/live.crt
+  else
+    # Unlike previous nodejs implementation, nginx needs certificate and chain
+    # in one file.
+    echo "Joining '/usercert/${SSL_CERT}' and '/usercert/${SSL_CERT_CA}' into '/cert/live.crt'"
+    cat "/usercert/${SSL_CERT}" "/usercert/${SSL_CERT_CA}" > /cert/live.crt
+  fi
 fi
 
 echo "Entrypoint finished"

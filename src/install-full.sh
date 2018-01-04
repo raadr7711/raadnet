@@ -715,13 +715,15 @@ create_data_volumes() {
     rm -f "${DATA_DIR}/cert";
   fi
 
-  # mount either an external cert dir or ~unms/data/cert to nginx
+  # always mount ~unms/data/cert as /cert
+  # mount either an external cert dir or ~unms/data/cert as /usercert
+  mkdir -p -m u+rwX,g-rwx,o-rwx "${DATA_DIR}/cert"
+  export CERT_DIR_MAPPING_NGINX="- ${DATA_DIR}/cert:/cert"
   if [ -z "${SSL_CERT_DIR}" ]; then
-    mkdir -p -m u+rwX,g-rwx,o-rwx "${DATA_DIR}/cert"
-    export CERT_DIR_MAPPING_NGINX="- ${DATA_DIR}/cert:/cert"
+    export USERCERT_DIR_MAPPING_NGINX=""
   else
-    echo "Will mount ${SSL_CERT_DIR}"
-    export CERT_DIR_MAPPING_NGINX="- ${SSL_CERT_DIR}:/cert:ro"
+    echo "Will mount ${SSL_CERT_DIR} as /usercert"
+    export USERCERT_DIR_MAPPING_NGINX="- ${SSL_CERT_DIR}:/usercert:ro"
   fi
 
   # Redis, Postgres, Fluentd
@@ -793,10 +795,10 @@ setup_auto_update() {
       exit 1
     fi
 
-    if [ -d /etc/cron.d ] && [ which crontab > /dev/null 2>&1 ]; then
+    if [ -d /etc/cron.d ] && which crontab > /dev/null 2>&1; then
       echo "* * * * * ${USERNAME} ${updateScript} --cron > /dev/null 2>&1 || true" > /etc/cron.d/unms-update
     else
-      if [ -d /etc/systemd/system ] && [ which systemctl > /dev/null 2>&1 ]; then
+      if [ -d /etc/systemd/system ] && which systemctl > /dev/null 2>&1; then
 
 cat > /etc/systemd/system/unms-update.service <<EOL
 [Unit]
@@ -918,7 +920,9 @@ confirm_success() {
   do
     sleep 3s
     unmsRunning=true
-    curl -skL "https://127.0.0.1:${HTTPS_PORT}" > /dev/null && break
+    # env -i is to ensure that http[s]_proxy variables are not set
+    # Otherwise the check would go through proxy.
+    env -i curl -skL "https://127.0.0.1:${HTTPS_PORT}" > /dev/null && break
     echo "."
     unmsRunning=false
     n=$((n+1))
