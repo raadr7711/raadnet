@@ -784,8 +784,7 @@ EOL
 }
 
 setup_auto_update() {
-
-  if [ "$NO_AUTO_UPDATE" = true ]; then
+  if [ "$NO_AUTO_UPDATE" = true ] || [ "$EUID" -ne 0 ]; then
     echo "Skipping auto-update setup."
   else
     updateScript="${APP_DIR}/update.sh";
