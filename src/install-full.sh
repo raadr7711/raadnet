@@ -374,7 +374,7 @@ check_system() {
       fi
       if version_equal_or_newer "${dist_version}" "1465.6.0"; then
         if ! echo $PATH | grep -q "/opt/bin" ; then
-            export PATH="/opt:$PATH"
+            export PATH="/opt/bin:$PATH"
         fi
 
         if [ ! -d /opt/bin ]; then
