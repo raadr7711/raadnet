@@ -4,14 +4,14 @@ This repo includes installation scripts an support scripts for Ubiquiti Network 
 
 [Wiki](https://github.com/Ubiquiti-App/UNMS/wiki) | [Installation](https://github.com/Ubiquiti-App/UNMS/wiki/Installation-%26-Update) | [Changelog](https://github.com/Ubiquiti-App/UNMS/releases) | [Roadmap](https://unms.com/)
 
-### UNMS versions
+## UNMS versions
 
-UNMS is in beta. It means that there isn't any [LTS version](https://en.wikipedia.org/wiki/Long-term_support) and we are not testing [RC versions](https://en.wikipedia.org/wiki/Software_release_life_cycle#Release_candidate) for longer period of time because we prefer quicker development. Stable versions 1.x.y will be available when there is an integration with [UCRM](https://ucrm.ubnt.com). 
+UNMS is in beta. It means that there isn't any [LTS version](https://en.wikipedia.org/wiki/Long-term_support) and we are not testing [RC versions](https://en.wikipedia.org/wiki/Software_release_life_cycle#Release_candidate) for longer period of time because we prefer quicker development. Stable versions will be available since there is an integration with [UCRM](https://ucrm.ubnt.com). 
 
-| UNMS Version | Automatic tests | Complete tests | Forum | Main purpose |
+| Version suffix | Automatic tests | Complete tests | Forum | Main purpose |
 | ----------- | ------------- | -------------- | -------------- | -------------- |
-| 0.x.z-devX | yes | no | Not public | Internal testing. It's not recommended to use it. |
-| 0.x.z-alphaX | yes | no | [Alpha](https://community.ubnt.com/t5/UNMS-Alpha/bd-p/UNMS-Alpha) | Unfinished version for early stage of testing. We are sending emails about this version to selected UNMS users. Main purpose is to check that we have fixed reported bugs or features. |
-| 0.x.z-betaX | yes | yes | [Alpha](https://community.ubnt.com/t5/UNMS-Alpha/bd-p/UNMS-Alpha) | Version which includes all important features. |
-| 0.x.z-rcX | yes | yes | [Beta](https://community.ubnt.com/t5/UNMS-Beta/bd-p/UNMSBeta) | Complete version which is available for wider group of UNMS users. We are notifying UNMS users according to reported bugs and included bug-fixes. | 
-| 0.x.z | yes | yes | [Beta](https://community.ubnt.com/t5/UNMS-Beta/bd-p/UNMSBeta) | Stable version which is distributed via in-app upgrade. |
+| devX | yes | no | none | Internal testing. It's not recommended to use it. |
+| alphaX | yes | no | [Alpha](https://community.ubnt.com/t5/UNMS-Alpha/bd-p/UNMS-Alpha) | Unfinished version for early stage of testing. We are sending emails about this version to selected UNMS users. Main purpose is to check that we have fixed reported bugs or features. |
+| betaX | yes | yes | [Alpha](https://community.ubnt.com/t5/UNMS-Alpha/bd-p/UNMS-Alpha) | Version which includes all important features. |
+| rcX | yes | yes | [Beta](https://community.ubnt.com/t5/UNMS-Beta/bd-p/UNMSBeta) | Complete version which is available for wider group of UNMS users. We are notifying UNMS users according to reported bugs and included bug-fixes. | 
+| none | yes | yes | [Beta](https://community.ubnt.com/t5/UNMS-Beta/bd-p/UNMSBeta) | Stable version which is distributed via in-app upgrade. |
