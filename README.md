@@ -6,7 +6,7 @@ This repo includes installation scripts an support scripts for Ubiquiti Network 
 
 ## UNMS versions
 
-UNMS is in beta. It means that there isn't any [LTS version](https://en.wikipedia.org/wiki/Long-term_support) and we are not testing [RC versions](https://en.wikipedia.org/wiki/Software_release_life_cycle#Release_candidate) for longer period of time because we prefer quicker development. Stable versions will be available since there is an integration with [UCRM](https://ucrm.ubnt.com). 
+UNMS is in beta. It means that there isn't any [LTS version](https://en.wikipedia.org/wiki/Long-term_support) and we are not testing [RC versions](https://en.wikipedia.org/wiki/Software_release_life_cycle#Release_candidate) for longer period of time because we prefer quicker development. Stable versions will be available since integration with [UCRM](https://ucrm.ubnt.com). 
 
 | Version suffix | Automatic tests | Complete tests | Forum | Main purpose |
 | ----------- | ------------- | -------------- | -------------- | -------------- |
