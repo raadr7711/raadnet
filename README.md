@@ -1,8 +1,8 @@
 ## Installation Scripts for Ubiquiti Network Management System (beta)
 
-This repo includes installation scripts an support scripts for Ubiquiti Network Management System (beta). You can simply configure, monitor, upgrade, and back up your UBNT devices with UNMS. Add your routers and switches. You can include your wireless equipment and optical GPON devices as well. And why stop there. You can even manage your client APs with ease. Management of all UBNT devices in a single application.
+This repo includes installation scripts and support scripts for Ubiquiti Network Management System (beta). You can simply configure, monitor, upgrade, and back up your UBNT devices with UNMS. Add your routers and switches. You can include your wireless equipment and optical GPON devices as well. And why stop there. You can even manage your client APs with ease. Management of all UBNT devices in a single application. For billing and customer management go to [UCRM](https://ucrm.ubnt.com). 
 
-[Wiki](https://github.com/Ubiquiti-App/UNMS/wiki) | [Installation](https://github.com/Ubiquiti-App/UNMS/wiki/Installation-%26-Update) | [Changelog](https://github.com/Ubiquiti-App/UNMS/releases) | [Roadmap](https://unms.com/)
+[Installation](https://github.com/Ubiquiti-App/UNMS/wiki/Installation-%26-Update) | [Wiki](https://github.com/Ubiquiti-App/UNMS/wiki) | [Community](https://community.ubnt.com/t5/UNMS-Beta/bd-p/UNMSBeta) | [Changelog](https://github.com/Ubiquiti-App/UNMS/releases) | [Roadmap](https://unms.com/)
 
 ## UNMS versions
 
