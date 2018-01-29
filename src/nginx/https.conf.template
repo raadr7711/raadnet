@@ -1,5 +1,5 @@
 server {
-  listen ##HTTPS_PORT##;
+  listen ${HTTPS_PORT};
 
   ssl_certificate /cert/live.crt;
   ssl_certificate_key /cert/live.key;

@@ -14,7 +14,7 @@ if ! id -u unms &>/dev/null; then
 
   # create directory for LetsEncrypt acme-challenge
   echo "Creating /www directory"
-  mkdir /www
+  mkdir -p /www
   chown unms /www
 
   # determine local network address
@@ -22,8 +22,11 @@ if ! id -u unms &>/dev/null; then
 
   # create Nginx config files from templates
   echo "Creating Nginx config files"
-  rm -f /etc/nginx/conf.d/*
+  mkdir -p /etc/nginx/conf.d 2>/dev/null
+  mkdir -p /etc/nginx/snippets 2>/dev/null
+
   /fill-template.sh "/nginx.conf.template" "/etc/nginx/nginx.conf"
+  /fill-template.sh "/secure_links.conf.template" "/etc/nginx/snippets/secure_links.conf"
 
   WS_PORT=${WS_PORT:-${HTTPS_PORT}}
   if [ "${WS_PORT}" = "${HTTPS_PORT}" ]; then
@@ -112,16 +115,9 @@ if [ -z "${SSL_CERT}" ]; then
     chown -R unms /cert/*
   fi
 else
+  # Copy user certs to /cert, join cert and chain if necessary.
   echo "Will use custom SSL certificate"
-  cp -a "/usercert/${SSL_CERT_KEY}" /cert/live.key
-  if [ -z "${SSL_CERT_CA}" ]; then
-    cp -a "/usercert/${SSL_CERT}" /cert/live.crt
-  else
-    # Unlike previous nodejs implementation, nginx needs certificate and chain
-    # in one file.
-    echo "Joining '/usercert/${SSL_CERT}' and '/usercert/${SSL_CERT_CA}' into '/cert/live.crt'"
-    cat "/usercert/${SSL_CERT}" "/usercert/${SSL_CERT_CA}" > /cert/live.crt
-  fi
+  /copy-user-certs.sh
 fi
 
 echo "Entrypoint finished"

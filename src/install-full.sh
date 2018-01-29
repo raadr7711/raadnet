@@ -24,6 +24,9 @@ DOCKER_COMPOSE_FILE="${APP_DIR}/${DOCKER_COMPOSE_FILENAME}"
 DOCKER_COMPOSE_TEMPLATE_FILENAME="docker-compose.yml.template"
 DOCKER_COMPOSE_TEMPLATE="${APP_DIR}/${DOCKER_COMPOSE_TEMPLATE_FILENAME}"
 
+# random key for secure link module
+SECURE_LINK_SECRET=$(head -c 500 /dev/urandom | tr -dc A-Za-z0-9 | head -c 100)
+
 # prerequisites "command|package"
 PREREQUISITES=(
   "curl|curl"
@@ -289,6 +292,7 @@ export HOST_TAG
 export BRANCH
 export UNMS_HTTP_PORT
 export UNMS_WS_PORT
+export SECURE_LINK_SECRET
 export IPAM_PUBLIC
 export IPAM_PRIVATE
 

@@ -22,7 +22,14 @@ if echo "${domain}" | grep "[0-9]$" &>/dev/null \
 then
    echo "Let's Encrypt can only be used for fully qualified domain names."
 else
+  if [ -f "/cert/use_certbot_staging_env" ]; then
+    echo "Using staging environment. The certificate will not be trusted."
+    staging="--staging"
+  else
+    staging=""
+  fi
   if certbot certonly \
+    ${staging} \
     --quiet \
     --non-interactive \
     --register-unsafely-without-email \
@@ -49,5 +56,3 @@ if [ "${success}" = true ]; then
 else
   exit 1
 fi
-
-
