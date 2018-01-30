@@ -1,5 +1,5 @@
 server {
-  listen ##WS_PORT##;
+  listen ${WS_PORT};
 
   ssl_certificate /cert/live.crt;
   ssl_certificate_key /cert/live.key;
@@ -10,7 +10,14 @@ server {
   ssl_ciphers HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
   ssl_prefer_server_ciphers on;
 
+  include "snippets/secure_links.conf";
+
   location / {
+    # redirect to UI for non-upgrade requests
+    if ($http_upgrade = "") {
+      return 301 https://$host:${PUBLIC_HTTPS_PORT}$request_uri;
+    }
+
     proxy_pass       http://websocket;
     proxy_redirect   off;
     proxy_set_header Host $http_host;
