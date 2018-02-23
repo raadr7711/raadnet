@@ -30,6 +30,8 @@ server {
     client_max_body_size 0;
   }
 
+  include "snippets/shell.conf";
+
   error_page 502 /502.html;
   location = /502.html {
       root  /;

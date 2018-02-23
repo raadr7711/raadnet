@@ -1,4 +1,4 @@
-FROM fluent/fluentd:v0.12-latest
+FROM fluent/fluentd:v0.14-latest
 USER root
 COPY entrypoint.sh /
 RUN apk add --no-cache --update su-exec \

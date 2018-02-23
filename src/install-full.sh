@@ -8,12 +8,18 @@ PATH="${PATH}:/usr/local/bin"
 
 UNMS_HTTP_PORT="8081"
 UNMS_WS_PORT="8082"
+UNMS_WS_SHELL_PORT="8083"
 ALTERNATIVE_HTTP_PORT="8080"
 ALTERNATIVE_HTTPS_PORT="8443"
 
 COMPOSE_PROJECT_NAME="unms"
 USERNAME=${UNMS_USER:-"unms"}
-HOME_DIR=${UNMS_HOME_DIR:-"/home/${USERNAME}"}
+if getent passwd ${USERNAME} >/dev/null; then
+  HOME_DIR="$(getent passwd ${USERNAME} | cut -d: -f6)"
+else
+  HOME_DIR=${UNMS_HOME_DIR:-"/home/${USERNAME}"}
+fi
+
 APP_DIR="${HOME_DIR}/app"
 DATA_DIR="${HOME_DIR}/data"
 CONFIG_DIR="${APP_DIR}/conf"
@@ -25,7 +31,7 @@ DOCKER_COMPOSE_TEMPLATE_FILENAME="docker-compose.yml.template"
 DOCKER_COMPOSE_TEMPLATE="${APP_DIR}/${DOCKER_COMPOSE_TEMPLATE_FILENAME}"
 
 # random key for secure link module
-SECURE_LINK_SECRET=$(head -c 500 /dev/urandom | tr -dc A-Za-z0-9 | head -c 100)
+SECURE_LINK_SECRET=$(export LC_ALL=C; head -c 500 /dev/urandom | tr -dc A-Za-z0-9 | head -c 100)
 
 # prerequisites "command|package"
 PREREQUISITES=(
@@ -59,6 +65,7 @@ SSL_CERT_CA=""
 HOST_TAG=""
 UNATTENDED="false"
 NO_AUTO_UPDATE="false"
+NO_OVERCOMMIT_MEMORY="false"
 BRANCH="master"
 SUBNET=""
 
@@ -107,6 +114,10 @@ case $key in
   --no-auto-update)
     echo "Setting NO_AUTO_UPDATE=true"
     NO_AUTO_UPDATE="true"
+    ;;
+  --no-overcommit-memory)
+    echo "Setting NO_OVERCOMMIT_MEMORY=true"
+    NO_OVERCOMMIT_MEMORY="true"
     ;;
   --use-local-images)
     echo "Setting USE_LOCAL_IMAGES=true"
@@ -285,6 +296,7 @@ export CONFIG_DIR
 export HTTP_PORT
 export HTTPS_PORT
 export WS_PORT
+export WS_SHELL_PORT
 export SSL_CERT
 export SSL_CERT_KEY
 export SSL_CERT_CA
@@ -292,9 +304,14 @@ export HOST_TAG
 export BRANCH
 export UNMS_HTTP_PORT
 export UNMS_WS_PORT
+export UNMS_WS_SHELL_PORT
 export SECURE_LINK_SECRET
 export IPAM_PUBLIC
 export IPAM_PRIVATE
+
+is_decimal_number() {
+  [[ ${1} =~ ^[0-9]+$ ]]
+}
 
 version_equal_or_newer() {
   if [[ "$1" == "$2" ]]; then return 0; fi
@@ -303,6 +320,8 @@ version_equal_or_newer() {
   for ((i=${#ver1[@]}; i<${#ver2[@]}; i++)); do ver1[i]=0; done
   for ((i=0; i<${#ver1[@]}; i++)); do
     if [[ -z ${ver2[i]} ]]; then ver2[i]=0; fi
+    if ! is_decimal_number "${ver1[i]}" ; then return 1; fi
+    if ! is_decimal_number "${ver2[i]}" ; then return 1; fi
     if ((10#${ver1[i]} > 10#${ver2[i]})); then return 0; fi
     if ((10#${ver1[i]} < 10#${ver2[i]})); then return 1; fi
   done
@@ -367,6 +386,11 @@ check_system() {
 
       debian)
       dist_version="$(sed 's/\/.*//' /etc/debian_version | sed 's/\..*//')"
+      case "${dist_version}" in
+        jessie) dist_version=8;;
+        stretch) dist_version=9;;
+        buster) dist_version=10;;
+      esac
       if version_equal_or_newer "${dist_version}" "8"; then
         supported_distro=true
       fi
@@ -444,16 +468,16 @@ check_system() {
 install_docker() {
   if ! which docker > /dev/null 2>&1; then
     echo "Download and install Docker"
+    export CHANNEL="stable"
     curl -fsSL https://get.docker.com/ | sh
   fi
 
-  DOCKER_VERSION=$(docker -v | sed 's/.*version \([0-9.]*\).*/\1/');
-  DOCKER_VERSION_PARTS=( ${DOCKER_VERSION//./ } )
-  echo "Docker version: ${DOCKER_VERSION}"
+  systemctl enable docker
+  systemctl start docker
 
-  if (( ${DOCKER_VERSION_PARTS[0]:-0} < 1
-        || (${DOCKER_VERSION_PARTS[0]:-0} == 1 && ${DOCKER_VERSION_PARTS[1]:-0} < 12)
-        || (${DOCKER_VERSION_PARTS[0]:-0} == 1 && ${DOCKER_VERSION_PARTS[1]:-0} == 12 && ${DOCKER_VERSION_PARTS[2]:-0} < 4) )); then
+  DOCKER_VERSION=$(docker -v | sed 's/.*version \([0-9.]*\).*/\1/');
+  echo "Docker version: ${DOCKER_VERSION}"
+  if ! version_equal_or_newer "${DOCKER_VERSION}" "1.12.4" ; then
     echo "Docker version ${DOCKER_VERSION} is not supported. Please upgrade to version 1.12.4 or newer."
     exit 1;
   fi
@@ -477,11 +501,9 @@ install_docker_compose() {
   fi
 
   DOCKER_COMPOSE_VERSION=$(docker-compose -v | sed 's/.*version \([0-9]*\.[0-9]*\).*/\1/');
-  DOCKER_COMPOSE_MAJOR=${DOCKER_COMPOSE_VERSION%.*}
-  DOCKER_COMPOSE_MINOR=${DOCKER_COMPOSE_VERSION#*.}
   echo "Docker Compose version: ${DOCKER_COMPOSE_VERSION}"
 
-  if [ "${DOCKER_COMPOSE_MAJOR}" -lt 2 ] && [ "${DOCKER_COMPOSE_MINOR}" -lt 9 ] || [ "${DOCKER_COMPOSE_MAJOR}" -lt 1 ]; then
+  if ! version_equal_or_newer "${DOCKER_COMPOSE_VERSION}" "1.9" ; then
     echo >&2 "Docker compose version ${DOCKER_COMPOSE_VERSION} is not supported. Please upgrade to version 1.9 or newer."
     if [ "$UNATTENDED" = true ]; then exit 1; fi
     read -p "Would you like to upgrade Docker compose automatically? [y/N]" -n 1 -r
@@ -499,20 +521,79 @@ install_docker_compose() {
   fi
 }
 
+set_overcommit_memory() {
+  if [ "${NO_OVERCOMMIT_MEMORY}" = true ]; then
+    echo "Skipping vm.overcommit_memory setting."
+    return 0
+  fi
+
+  local currentSetting=0
+  currentSetting=$(cat /proc/sys/vm/overcommit_memory)
+  if [ "${currentSetting}" = "1" ]; then
+    echo "Skipping vm.overcommit_memory setting. It is already set to 1."
+    return 0
+  fi
+
+  local totalMemoryKb=0
+  totalMemoryKb=$(grep "^MemTotal:" /proc/meminfo | sed 's/[^0-9]//g')
+  if [ "${totalMemoryKb}" -ge 2097152 ]; then # 2GB in kilobytes
+    echo "Skipping vm.overcommit_memory setting. Server has enough memory."
+    return 0
+  fi
+
+  if [ ! "$UNATTENDED" = true ]; then
+    echo "This server has less than 2GB of memory. We recommend setting kernel"
+    echo "overcommit memory setting to 1. This improves stability of some docker"
+    echo "containers."
+    read -p "Would you like to set the overcommit memory setting to 1? [Y/n]" -n 1 -r
+    echo
+    if [[ ${REPLY} =~ ^[Nn]$ ]]; then
+      echo "Skipping vm.overcommit_memory setting."
+      return 0
+    fi
+  fi
+
+  echo "Setting vm.overcommit_memory=1"
+  echo "vm.overcommit_memory=1" >> /etc/sysctl.conf
+  sysctl -p > /dev/null
+}
+
 create_user() {
   if [ -z "$(getent passwd ${USERNAME})" ]; then
-    echo "Creating user ${USERNAME}."
-
-    if ! useradd -m ${USERNAME}; then
+    echo "Creating user ${USERNAME}, home dir '${HOME_DIR}'."
+    if ! useradd -m -d "${HOME_DIR}" -G docker "${USERNAME}"; then
       echo >&2 "Failed to create user '${USERNAME}'"
       exit 1
     fi
+  else
+    echo >&2 "WARNING: User '${USERNAME}' already exists. We are going to ensure that the"
+    echo >&2 "user is in the 'docker' group and that its home '${HOME_DIR}' dir exists and"
+    echo >&2 "is writeable by the user."
+    if ! [ "$UNATTENDED" = true ]; then
+      read -p "Would you like to continue with the installation? [y/N]" -n 1 -r
+      echo
+      if ! [[ ${REPLY} =~ ^[Yy]$ ]]; then
+        exit 1
+      fi
+    fi
+  fi
 
-    if ! usermod -aG docker ${USERNAME}; then
+  if ! getent group docker | grep -q "\b${USERNAME}\b"; then
+    echo "Adding user '${USERNAME}' to docker group."
+    if ! usermod -aG docker "${USERNAME}"; then
       echo >&2 "Failed to add user '${USERNAME}' to docker group."
       exit 1
     fi
   fi
+
+  if ! [ -d "${HOME_DIR}" ]; then
+    echo "Creating home directory '${HOME_DIR}'."
+    if ! mkdir -p "${HOME_DIR}"; then
+      echo >&2 "Failed to create home directory '${HOME_DIR}'."
+      exit 1
+    fi
+  fi
+
   chown "${USERNAME}" "${HOME_DIR}"
   export USER_ID=$(id -u "${USERNAME}")
 }
@@ -944,6 +1025,7 @@ confirm_success() {
 check_system
 install_docker
 install_docker_compose
+set_overcommit_memory
 create_user
 backup_mongo
 fix_080_permission_issue # fix issue when migrating from 0.8.0

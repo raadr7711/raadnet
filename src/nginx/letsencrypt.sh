@@ -1,8 +1,12 @@
 #!/bin/sh
 
 set -e
+set -u
 
 domain=$1
+
+# Save domain so that it can be read from unms-cli
+echo "${domain}" > /cert/domain
 
 # don't do anything if user provides a custom certificate
 if [ ! -z "${SSL_CERT}" ]; then

@@ -1,9 +1,13 @@
 #!/bin/sh
 
 set -e
+set -u
 
 echo "Running cert.sh $*"
 domain=$1
+
+# Save domain so that it can be read from unms-cli
+echo "${domain}" > /cert/domain
 
 # if custom certificate is used and it changed, make sure that it is up to date
 if [ ! -z "${SSL_CERT}" ]; then

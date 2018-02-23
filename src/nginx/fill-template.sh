@@ -15,4 +15,5 @@ ${HTTPS_PORT}
 ${WS_PORT}
 ${UNMS_HTTP_PORT}
 ${UNMS_WS_PORT}
+${UNMS_WS_SHELL_PORT}
 ${PUBLIC_HTTPS_PORT}' < "${in}" > "${out}"

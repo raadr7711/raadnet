@@ -1,0 +1,21 @@
+{
+  "name": "unms-nginx",
+  "version": "0.12.0-beta.1",
+  "description": "UNMS (Ubiquiti network management system) NGINX server",
+  "private": true,
+  "dependencies": {},
+  "devDependencies": {
+    "fs-extra": "=5.0.0",
+    "gulp": "=3.9.1",
+    "shelljs": "=0.7.4",
+    "yargs": "=6.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ubiquiti-Cloud/gpon-nms.git"
+  },
+  "bugs": {
+    "url": "https://ubnt.myjetbrains.com/youtrack/issues/UNMS-"
+  },
+  "homepage": "https://unms.com"
+}

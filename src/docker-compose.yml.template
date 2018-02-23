@@ -10,26 +10,14 @@ networks:
 services:
   fluentd:
     container_name: unms-fluentd
-    build:
-      context: ./fluentd
-      dockerfile: Dockerfile
-      args:
-        - http_proxy=${http_proxy}
-        - HTTP_PROXY=${HTTP_PROXY}
-        - https_proxy=${https_proxy}
-        - HTTPS_PROXY=${HTTPS_PROXY}
-        - no_proxy=${no_proxy}
-        - NO_PROXY=${NO_PROXY}
-    # if we specify an image name, docker-compose will try to pull it from repository
-    # see https://github.com/docker/compose/issues/3673
-    # image: ubnt/unms-fluentd:local
+    image: ${DOCKER_IMAGE}-fluentd:${VERSION}
     restart: always
     networks:
       - public
     ports:
       - "127.0.0.1:24224:24224"
     volumes:
-      - ${CONFIG_DIR}/fluentd.conf:/etc/fluent/fluent.conf
+      - ${CONFIG_DIR}/fluent.conf:/etc/fluent/fluent.conf
       - ${DATA_DIR}/logs:/fluentd/log
     environment:
       - FLUENTD_UID=${USER_ID}
@@ -115,6 +103,7 @@ services:
       - NODE_ENV=${NODE_ENV}
       - HTTP_PORT=${UNMS_HTTP_PORT}
       - WS_PORT=${UNMS_WS_PORT}
+      - WS_SHELL_PORT=${UNMS_WS_SHELL_PORT}
       - SSL_CERT=${SSL_CERT}
       - PUBLIC_HTTPS_PORT=${PUBLIC_HTTPS_PORT}
       - PUBLIC_WS_PORT=${PUBLIC_WS_PORT}
@@ -160,5 +149,6 @@ services:
       - WS_PORT=${WS_PORT}
       - UNMS_HTTP_PORT=${UNMS_HTTP_PORT}
       - UNMS_WS_PORT=${UNMS_WS_PORT}
+      - UNMS_WS_SHELL_PORT=${UNMS_WS_SHELL_PORT}
       - PUBLIC_HTTPS_PORT=${PUBLIC_HTTPS_PORT}
       - SECURE_LINK_SECRET=${SECURE_LINK_SECRET}
