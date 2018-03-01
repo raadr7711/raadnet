@@ -21,7 +21,20 @@ server {
     client_max_body_size 0;
   }
 
+  location /v2.1/nms/maintenance/supportinfo {
+    proxy_pass       http://webserver;
+    proxy_redirect   off;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Referer "";
+    client_max_body_size 0;
+    proxy_read_timeout 300;
+  }
+
   include "snippets/shell.conf";
+  include "snippets/ws-api.conf";
 
   error_page 502 /502.html;
   location = /502.html {

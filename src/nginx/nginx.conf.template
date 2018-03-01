@@ -55,6 +55,10 @@ http {
     server unms:${UNMS_WS_SHELL_PORT};
   }
 
+  upstream ws_api {
+    server unms:${UNMS_WS_API_PORT};
+  }
+
   server {
     listen 12345;
 

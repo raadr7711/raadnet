@@ -9,6 +9,7 @@ PATH="${PATH}:/usr/local/bin"
 UNMS_HTTP_PORT="8081"
 UNMS_WS_PORT="8082"
 UNMS_WS_SHELL_PORT="8083"
+UNMS_WS_API_PORT="8084"
 ALTERNATIVE_HTTP_PORT="8080"
 ALTERNATIVE_HTTPS_PORT="8443"
 
@@ -305,6 +306,7 @@ export BRANCH
 export UNMS_HTTP_PORT
 export UNMS_WS_PORT
 export UNMS_WS_SHELL_PORT
+export UNMS_WS_API_PORT
 export SECURE_LINK_SECRET
 export IPAM_PUBLIC
 export IPAM_PRIVATE
@@ -468,8 +470,11 @@ check_system() {
 install_docker() {
   if ! which docker > /dev/null 2>&1; then
     echo "Download and install Docker"
-    export CHANNEL="stable"
-    curl -fsSL https://get.docker.com/ | sh
+    (
+      unset VERSION # we use this for UNMS version, docker thinks it is the docker version
+      export CHANNEL="stable"
+      curl -fsSL https://get.docker.com/ | sh
+    )
   fi
 
   systemctl enable docker
