@@ -475,10 +475,10 @@ install_docker() {
       export CHANNEL="stable"
       curl -fsSL https://get.docker.com/ | sh
     )
-  fi
 
-  systemctl enable docker
-  systemctl start docker
+    systemctl enable docker
+    systemctl start docker
+  fi
 
   DOCKER_VERSION=$(docker -v | sed 's/.*version \([0-9.]*\).*/\1/');
   echo "Docker version: ${DOCKER_VERSION}"
