@@ -65,7 +65,7 @@ services:
 
   rabbitmq:
     container_name: unms-rabbitmq
-    image: rabbitmq:3
+    image: rabbitmq:3-alpine
     restart: always
     depends_on:
       - fluentd
