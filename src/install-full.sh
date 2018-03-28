@@ -330,6 +330,31 @@ version_equal_or_newer() {
   return 0;
 }
 
+# usage: confirm <question>
+# Prints given question and asks user to type Y or N.
+# Returns 0 if user typed Y, 1 if user typed N.
+# Exits if user failed to type Y or N too many times.
+# examples:
+# confirm "Do you want to continue?" || exit 1
+confirm() {
+  local question="$1"
+  for i in {0..10}; do
+    read -p "${question} [Y/N]" -n 1 -r
+    echo
+    if [[ ${REPLY} =~ ^[Yy]$ ]]; then
+      echo "Yes"
+      return 0
+    fi
+    if [[ ${REPLY} =~ ^[Nn]$ ]]; then
+      echo "No"
+      return 1
+    fi
+    echo "Please type Y or N."
+  done
+  echo "Too many failed attempts."
+  exit 1
+}
+
 check_system() {
   local architecture
   architecture=$(uname -m)
@@ -435,12 +460,8 @@ check_system() {
 
   if [ ! "$UNATTENDED" = true ] && [ ! "${supported_distro}" = true ]; then
     echo "Your distribution '${lsb_dist} ${dist_version:-}' is not supported."
-    echo "We recommend that you install UNMS on Ubuntu 16.04, Debian 8 or newer."
-    read -p "Would you like to continue with the installation anyway? [y/N]" -n 1 -r
-    echo
-    if ! [[ ${REPLY} =~ ^[Yy]$ ]]; then
-      exit 1
-    fi
+    echo "We recommend that you install UNMS on Ubuntu 16.04, Debian 9 or newer."
+    confirm "Would you like to continue with the installation anyway?" || exit 1
   fi
 
   if [ ! "$UNATTENDED" = true ] && [[ -e /proc/meminfo ]]; then
@@ -511,22 +532,21 @@ install_docker_compose() {
   if ! version_equal_or_newer "${DOCKER_COMPOSE_VERSION}" "1.9" ; then
     echo >&2 "Docker compose version ${DOCKER_COMPOSE_VERSION} is not supported. Please upgrade to version 1.9 or newer."
     if [ "$UNATTENDED" = true ]; then exit 1; fi
-    read -p "Would you like to upgrade Docker compose automatically? [y/N]" -n 1 -r
-    echo
-    if [[ ${REPLY} =~ ^[Yy]$ ]]
-    then
-      if ! curl -sL "https://github.com/docker/compose/releases/download/1.9.0/docker-compose-$(uname -s)-$(uname -m)" -o ${DOCKER_COMPOSE_INSTALL_PATH}/docker-compose; then
-        echo >&2 "Docker compose upgrade failed. Aborting."
-        exit 1
-      fi
-      chmod +x ${DOCKER_COMPOSE_INSTALL_PATH}/docker-compose
-    else
+    confirm "Would you like to upgrade Docker compose automatically?" || exit 1
+    if ! curl -sL "https://github.com/docker/compose/releases/download/1.9.0/docker-compose-$(uname -s)-$(uname -m)" -o ${DOCKER_COMPOSE_INSTALL_PATH}/docker-compose; then
+      echo >&2 "Docker compose upgrade failed. Aborting."
       exit 1
     fi
+    chmod +x ${DOCKER_COMPOSE_INSTALL_PATH}/docker-compose
   fi
 }
 
 set_overcommit_memory() {
+  if [ "$EUID" -ne 0 ]; then
+    echo "Skipping vm.overcommit_memory setting. Not running as root."
+    return 0
+  fi
+
   if [ "${NO_OVERCOMMIT_MEMORY}" = true ]; then
     echo "Skipping vm.overcommit_memory setting."
     return 0
@@ -550,9 +570,7 @@ set_overcommit_memory() {
     echo "This server has less than 2GB of memory. We recommend setting kernel"
     echo "overcommit memory setting to 1. This improves stability of some docker"
     echo "containers."
-    read -p "Would you like to set the overcommit memory setting to 1? [Y/n]" -n 1 -r
-    echo
-    if [[ ${REPLY} =~ ^[Nn]$ ]]; then
+    if ! confirm "Would you like to set the overcommit memory setting to 1?"; then
       echo "Skipping vm.overcommit_memory setting."
       return 0
     fi
@@ -575,11 +593,7 @@ create_user() {
     echo >&2 "user is in the 'docker' group and that its home '${HOME_DIR}' dir exists and"
     echo >&2 "is writeable by the user."
     if ! [ "$UNATTENDED" = true ]; then
-      read -p "Would you like to continue with the installation? [y/N]" -n 1 -r
-      echo
-      if ! [[ ${REPLY} =~ ^[Yy]$ ]]; then
-        exit 1
-      fi
+      confirm "Would you like to continue with the installation?" || exit 1
     fi
   fi
 

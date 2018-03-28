@@ -65,7 +65,7 @@ services:
 
   rabbitmq:
     container_name: unms-rabbitmq
-    image: rabbitmq:3-alpine
+    image: rabbitmq:3.7.4-alpine
     restart: always
     depends_on:
       - fluentd
@@ -117,6 +117,8 @@ services:
       - no_proxy=${no_proxy}
       - NO_PROXY=${NO_PROXY}
       - SECURE_LINK_SECRET=${SECURE_LINK_SECRET}
+    cap_add:
+      - NET_ADMIN
 
   nginx:
     image: ${DOCKER_IMAGE}-nginx:${VERSION}
