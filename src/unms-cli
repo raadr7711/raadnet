@@ -66,13 +66,21 @@ refresh-certificate() {
   DOMAIN=$(head -n 1 ../data/cert/domain)
   if [ -n "${SSL_CERT}" ]; then
     # Refresh custom certificate if it changed.
-    docker-compose -p unms exec nginx /cert.sh "${DOMAIN}"
+    docker-compose -p unms exec nginx sudo -E -u unms /cert.sh "${DOMAIN}"
   else
     # Refresh Let's Encrypt certificate.
-    docker-compose -p unms exec nginx /letsencrypt.sh "${DOMAIN}"
+    docker-compose -p unms exec nginx sudo -E -u unms /letsencrypt.sh "${DOMAIN}"
   fi
 }
 
+reduce-device-update-frequency() {
+  local originalSettings
+  local updatedSettings
+  originalSettings=$(docker-compose -p unms exec redis redis-cli --raw get nms:nms | sed 's/\r//g' | tr -d '\n') || fail "Failed to get UNMS settings."
+  updatedSettings=$(echo -n "${originalSettings}" | sed 's/deviceTransmissionProfile\":\"[^\"]*/deviceTransmissionProfile\":\"minimal/')
+  docker-compose -p unms exec redis redis-cli set nms:nms "${updatedSettings}" || fail "Failed to update UNMS settings."
+  echo "Device connection frequency changed to 'minimal'. Please restart UNMS to apply changes: sudo bash ${SCRIPT_DIR}/unms-cli restart"
+}
 (
   cd "${APP_DIR}"
 
@@ -130,6 +138,14 @@ refresh-certificate() {
     exit 0
   fi
 
-  echo "Usage: unms-cli [start|stop|restart|fix-redis-aof|rewrite-redis-aof|refresh-certificate]"
+  if [ "$*" = "reduce-device-update-frequency" ]; then
+    if ! isRunning; then
+      echo "UNMS is not running"
+    fi
+    reduce-device-update-frequency
+    exit 0
+  fi
+
+  echo "Usage: unms-cli [start|stop|restart|fix-redis-aof|rewrite-redis-aof|refresh-certificate|reduce-device-update-frequency]"
   exit 0
 )

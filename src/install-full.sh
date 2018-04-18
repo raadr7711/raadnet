@@ -900,6 +900,13 @@ setup_auto_update() {
 
     if [ -d /etc/cron.d ] && which crontab > /dev/null 2>&1; then
       echo "* * * * * ${USERNAME} ${updateScript} --cron > /dev/null 2>&1 || true" > /etc/cron.d/unms-update
+
+      if (crontab -l -u "${USERNAME}" | grep "update.sh --cron"); then
+        # The per-user crontab was used in previous versions of UNMS. Now we are using the global crontab.
+        # Remove the update script from per-user crontab. There should be no other records by default but
+        # user may have set up some custom job so remove just the update script.
+        crontab -l -u "${USERNAME}" | grep -v "update.sh --cron" || true | crontab -u "${USERNAME}" -
+      fi
     else
       if [ -d /etc/systemd/system ] && which systemctl > /dev/null 2>&1; then
 

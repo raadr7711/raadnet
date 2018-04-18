@@ -15,7 +15,7 @@ env SSL_CERT_KEY;
 env SSL_CERT_CA;
 
 events {
-  worker_connections 1024; # increase if you have lots of clients
+  worker_connections 8192; # increase if you have lots of clients
   accept_mutex on; # set to 'on' if nginx worker_processes > 1
 }
 
@@ -139,6 +139,13 @@ http {
 
   server {
     listen ${HTTP_PORT} default;
+
+    add_header x-content-type-options nosniff;
+    add_header x-download-options noopen;
+    add_header x-frame-options DENY;
+    add_header x-xss-protection "1; mode=block";
+    add_header Content-Security-Policy "default-src 'self' data: wss: api.github.com *.tile.openstreetmap.org *.gstatic.com *.googleapis.com; style-src 'self' 'unsafe-inline' *.googleapis.com;";
+    add_header Referrer-Policy same-origin;
 
     location /.well-known/acme-challenge {
       root /www;
