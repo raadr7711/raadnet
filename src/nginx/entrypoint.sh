@@ -29,6 +29,7 @@ if ! id -u unms &>/dev/null; then
   /fill-template.sh "/secure_links.conf.template" "/etc/nginx/snippets/secure_links.conf"
   /fill-template.sh "/ws-api.conf.template" "/etc/nginx/snippets/ws-api.conf"
   /fill-template.sh "/shell.conf.template" "/etc/nginx/snippets/shell.conf"
+  /fill-template.sh "/common-headers.conf.template" "/etc/nginx/snippets/common-headers.conf"
 
   WS_PORT=${WS_PORT:-${HTTPS_PORT}}
   if [ "${WS_PORT}" = "${HTTPS_PORT}" ]; then

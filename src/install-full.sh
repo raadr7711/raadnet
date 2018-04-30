@@ -23,6 +23,7 @@ fi
 
 APP_DIR="${HOME_DIR}/app"
 DATA_DIR="${HOME_DIR}/data"
+RESTORE_DIR="${DATA_DIR}/unms-backups/restore"
 CONFIG_DIR="${APP_DIR}/conf"
 CONFIG_FILE="${APP_DIR}/unms.conf"
 DOCKER_COMPOSE_INSTALL_PATH="/usr/local/bin"
@@ -662,6 +663,13 @@ fix_080_permission_issue() {
   fi
 }
 
+remove_old_restore_files() {
+  # Make sure that restore dir does not exist. We are now applying any backup in this directory during start
+  # of UNMS container. Under normal circumstances this directory should be empty or not exist at all.
+  test -d "${RESTORE_DIR}" || return 0 # nothing to delete
+  rm "${RESTORE_DIR}" -rf || echo "WARNING: Failed to clear restore directory '${RESTORE_DIR}'."
+}
+
 migrate_app_files() {
   oldConfigFile="${HOME_DIR}/unms.conf"
   oldDockerComposeFile="${HOME_DIR}/docker-compose.yml"
@@ -1020,8 +1028,8 @@ remove_old_images() {
   else
     echo "No old images found"
   fi
-
 }
+
 
 confirm_success() {
   echo "Waiting for UNMS to start"
@@ -1055,6 +1063,7 @@ set_overcommit_memory
 create_user
 backup_mongo
 fix_080_permission_issue # fix issue when migrating from 0.8.0
+remove_old_restore_files
 migrate_app_files
 prepare_templates
 determine_public_ports # need to set all docker compose variables
