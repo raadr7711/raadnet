@@ -704,6 +704,12 @@ prepare_templates() {
 }
 
 determine_public_ports() {
+  # The docker-compose.yml will be broken if we use same port for http and https. Make sure that they are different.
+  if [ "${HTTP_PORT}" = "${HTTPS_PORT}" ]; then
+    echo >&2 "ERROR: Port '${HTTP_PORT}' cannot be configured for both http and https. Please choose different ports using --http-port and --https-port arguments"
+    exit 1
+  fi
+
   # default for PUBLIC_HTTPS_PORT is HTTPS_PORT
   PUBLIC_HTTPS_PORT="${HTTPS_PORT}"
 

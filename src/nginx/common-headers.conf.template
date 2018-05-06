@@ -1,0 +1,8 @@
+# Common headers
+# add_header directive inherits from previous level only if no add_header directive is present on current level
+add_header strict-transport-security max-age=15768000;
+add_header x-content-type-options nosniff;
+add_header x-download-options noopen;
+add_header x-frame-options DENY;
+add_header x-xss-protection "1; mode=block";
+add_header Referrer-Policy same-origin;
