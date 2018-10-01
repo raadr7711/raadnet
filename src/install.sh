@@ -40,7 +40,7 @@ fi
 cd "${temp}"
 echo "Downloading installation package for version ${version}."
 packageUrl="${repo}/unms-${version}.tar.gz"
-if ! curl -sS "${packageUrl}" | tar xz; then
+if ! curl -sS "${packageUrl}" | tar xzf -; then
   echo >&2 "Failed to download installation package ${packageUrl}"
   exit 1
 fi

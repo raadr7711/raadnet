@@ -12,6 +12,7 @@ UNMS_WS_SHELL_PORT="8083"
 UNMS_WS_API_PORT="8084"
 ALTERNATIVE_HTTP_PORT="8080"
 ALTERNATIVE_HTTPS_PORT="8443"
+ALTERNATIVE_NETFLOW_PORT="2056"
 
 COMPOSE_PROJECT_NAME="unms"
 USERNAME=${UNMS_USER:-"unms"}
@@ -58,6 +59,7 @@ DOCKER_PASSWORD=""
 HTTP_PORT="80"
 HTTPS_PORT="443"
 WS_PORT=""
+NETFLOW_PORT="2055"
 PROXY_HTTPS_PORT=""
 PROXY_WS_PORT=""
 SSL_CERT_DIR=""
@@ -70,6 +72,12 @@ NO_AUTO_UPDATE="false"
 NO_OVERCOMMIT_MEMORY="false"
 BRANCH="master"
 SUBNET=""
+CLUSTER_SIZE=auto
+
+fail() {
+  echo -e "ERROR: $1" >&2
+  exit 1
+}
 
 read_previous_config() {
   # read WS port settings from existing running container
@@ -175,6 +183,11 @@ case $key in
     PROXY_WS_PORT="$2"
     shift # past argument value
     ;;
+  --netflow-port)
+    echo "Setting NETFLOW_PORT=$2"
+    NETFLOW_PORT="$2"
+    shift # past argument value
+    ;;
   --ssl-cert-dir)
     echo "Setting SSL_CERT_DIR=$2"
     SSL_CERT_DIR="$2"
@@ -214,6 +227,11 @@ case $key in
     echo "Setting NODE_ENV=$2"
     NODE_ENV="$2"
     shift # past argument value
+    ;;
+  --workers)
+    echo "Setting CLUSTER_SIZE=$2"
+    [[ "${2}" =~ ^[1-8]$ ]] || [[ "${2}" = "auto" ]] || fail "--workers argument must be a number in range 1-8 or 'auto'."
+    CLUSTER_SIZE="$2"
     ;;
 
   *)
@@ -299,6 +317,7 @@ export HTTP_PORT
 export HTTPS_PORT
 export WS_PORT
 export WS_SHELL_PORT
+export NETFLOW_PORT
 export SSL_CERT
 export SSL_CERT_KEY
 export SSL_CERT_CA
@@ -311,6 +330,7 @@ export UNMS_WS_API_PORT
 export SECURE_LINK_SECRET
 export IPAM_PUBLIC
 export IPAM_PRIVATE
+export CLUSTER_SIZE
 
 is_decimal_number() {
   [[ ${1} =~ ^[0-9]+$ ]]
@@ -487,6 +507,36 @@ check_system() {
       echo >&2 "We recommend at least 2 GB RAM to run UNMS without problems."
     fi
   fi
+}
+
+check_custom_cert_path() {
+  if [ -z "${SSL_CERT_DIR}" ]; then
+    # Not using custom cert.
+    return 0
+  fi
+  if [ "${EUID}" -ne 0 ]; then
+    # Ignore cert check during update.
+    return 0
+  fi
+
+  local cert_path="${SSL_CERT_DIR}/${SSL_CERT}"
+  local key_path="${SSL_CERT_DIR}/${SSL_CERT_KEY}"
+  local norm_cert_dir
+  local norm_cert_path
+  local norm_key_path
+
+  # Check that cert and key files exist.
+  test -f "${cert_path}" || fail "Cert file '${cert_path}' does not exist. Check the --ssl-cert-dir and --ssl-cert arguments."
+  test -f "${key_path}" || fail "Key file '${key_path}' does not exist. Check the --ssl-cert-dir and --ssl-cert-key arguments."
+
+  # Check that the cert dir is parent of cert and key files.
+  # Nginx container mounts this directory and if the cert or key file actually placed within another directory it will
+  # be inaccessible from within the container.
+  norm_cert_dir=$(readlink -f "${SSL_CERT_DIR}") || fail "Failed to determine real path of cert directory '${SSL_CERT_DIR}'. Check the --ssl-cert-dir argument."
+  norm_cert_path=$(readlink -f "${cert_path}") || fail "Failed to determine real path of cert file '${cert_path}'. Check the --ssl-cert argument."
+  norm_key_path=$(readlink -f "${key_path}") || fail "Failed to determine real path of key file '${key_path}'. Check the --ssl-cert-key argument."
+  [[ "${norm_cert_path}" = "${norm_cert_dir}"* ]] || fail "Cert file: \n${norm_cert_path}\n is not placed in the cert directory:\n${norm_cert_dir}\nCheck --ssl-cert-dir and --ssl-cert arguments for symbolic links. The actual ssl cert file (not just symbolic link) must be within the ssl cert directory or its subdirectories."
+  [[ "${norm_key_path}" = "${norm_cert_dir}"* ]] || fail "Key file:\n${norm_key_path}\n is not placed in the cert directory:\n${norm_cert_dir}\nCheck --ssl-cert-dir and --ssl-cert-key arguments for symbolic links. The actual ssl key file (not just symbolic link) must be within the ssl cert directory or its subdirectories."
 }
 
 install_docker() {
@@ -773,6 +823,8 @@ pull_docker_images() {
       exit 1
     fi
   fi
+
+  docker pull ubnt/ucrm-conntrack || fail "Failed to pull ubnt/ucrm-conntrack image"
 }
 
 build_docker_images() {
@@ -816,6 +868,24 @@ check_free_ports() {
     fi
     read -r -p "Port ${HTTPS_PORT} is already in use, please choose a different HTTPS port for UNMS. [${ALTERNATIVE_HTTPS_PORT}]: " HTTPS_PORT
     HTTPS_PORT=${HTTPS_PORT:-$ALTERNATIVE_HTTPS_PORT}
+  done
+
+  while true; do
+    timeout 3 nc -ul 127.0.0.1 -p "${NETFLOW_PORT}" 2>/dev/null 2>&1 && RC=$? || RC=$? # this command fails with code 1 if port is occupied or 143 if port is free (and nc is is killed by timeout)
+    if [ "${RC}" = 1 ]; then
+      # Port is used
+      if [ "$UNATTENDED" = true ]; then
+        echo >&2 "WARNING: Port ${NETFLOW_PORT} is in use. Selecting ${ALTERNATIVE_NETFLOW_PORT} port for NetFlow."
+        NETFLOW_PORT="${ALTERNATIVE_NETFLOW_PORT}"
+        break;
+      else
+        read -r -p "Port ${NETFLOW_PORT} is already in use, please choose a different NetFlow port for UNMS. [${ALTERNATIVE_NETFLOW_PORT}]: " NETFLOW_PORT
+        NETFLOW_PORT=${NETFLOW_PORT:-$ALTERNATIVE_NETFLOW_PORT}
+      fi
+    else # $? = 143 (= timeout expired)
+      # Port is unused
+      break
+    fi
   done
 
   export HTTP_PORT
@@ -884,6 +954,7 @@ DOCKER_IMAGE="${DOCKER_IMAGE}"
 DATA_DIR="${DATA_DIR}"
 HTTP_PORT="${HTTP_PORT}"
 HTTPS_PORT="${HTTPS_PORT}"
+NETFLOW_PORT="${NETFLOW_PORT}"
 PROXY_HTTPS_PORT="${PROXY_HTTPS_PORT}"
 WS_PORT="${WS_PORT}"
 PROXY_WS_PORT="${PROXY_WS_PORT}"
@@ -894,6 +965,7 @@ SSL_CERT_CA="${SSL_CERT_CA}"
 HOST_TAG="${HOST_TAG}"
 BRANCH="${BRANCH}"
 SUBNET="${SUBNET}"
+CLUSTER_SIZE="${CLUSTER_SIZE}"
 EOL
   then
     echo >&2 "Failed to save config file ${CONFIG_FILE}"
@@ -996,6 +1068,10 @@ change_owner() {
   fi
 }
 
+reset_udp_connections() {
+  docker run --net=host --privileged --rm ubnt/ucrm-conntrack -D -p udp --dport="${NETFLOW_PORT}" || true
+}
+
 start_docker_containers() {
   echo "Starting docker containers."
   cd "${APP_DIR}"
@@ -1010,32 +1086,28 @@ remove_old_images() {
   danglingImages=$(docker images -qf "dangling=true")
   if [ ! -z "${danglingImages}" ]; then docker rmi ${danglingImages} || true; fi
 
-  currentImage=$(docker ps --format "{{.Image}}" --filter name=unms$)
-  echo "Current image: ${currentImage}"
-  oldImages=($(docker images --format "{{.Repository}}:{{.Tag}}" | grep ubnt/unms: || true) "")
-  echo "All UNMS images: ${oldImages[*]}"
+  for imageName in "unms" "unms-nginx" "unms-fluentd" "unms-netflow"; do
+    currentImage=$(docker ps --format "{{.Image}}" --filter name="${imageName}"$)
+    oldImages=($(docker images "ubnt/${imageName}:"* --format "{{.Repository}}:{{.Tag}}" || true) "")
 
-  if [ ! -z "${currentImage}" ] && [ ! -z "${oldImages}" ]; then
-    tmp=()
-    for value in "${oldImages[@]}"; do
-      [ ! "${value}" = "${currentImage}" ] && tmp+=(${value})
-    done
-    oldImages=("${tmp[@]:-}")
-  fi
-
-  oldImagesString="${oldImages[*]}"
-  echo "Images to remove: '${oldImages[*]}'"
-
-  if [ ! -z "${oldImagesString}" ]; then
-    echo "Removing old images '${oldImagesString}'"
-    if ! docker rmi ${oldImagesString}; then
-      echo "Failed to remove some old images"
+    if [ ! -z "${currentImage}" ] && [ ! -z "${oldImages}" ]; then
+      tmp=()
+      for value in "${oldImages[@]}"; do
+        [ ! "${value}" = "${currentImage}" ] && tmp+=(${value})
+      done
+      oldImages=("${tmp[@]:-}")
     fi
-  else
-    echo "No old images found"
-  fi
-}
 
+    oldImagesString="${oldImages[*]}"
+    if [ ! -z "${oldImagesString}" ]; then
+      echo "Current ${imageName} image: ${currentImage}"
+      echo "Old ${imageName} images: ${oldImagesString}"
+      if ! docker rmi ${oldImagesString}; then
+        echo "Failed to remove some old images"
+      fi
+    fi
+  done
+}
 
 confirm_success() {
   echo "Waiting for UNMS to start"
@@ -1063,6 +1135,7 @@ confirm_success() {
 }
 
 check_system
+check_custom_cert_path
 install_docker
 install_docker_compose
 set_overcommit_memory
@@ -1087,6 +1160,7 @@ save_config
 setup_auto_update
 delete_old_firmwares
 change_owner
+reset_udp_connections
 start_docker_containers
 remove_old_images
 confirm_success

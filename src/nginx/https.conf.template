@@ -7,11 +7,16 @@ server {
   ssl on;
   ssl_session_cache  builtin:1000  shared:SSL:10m;
   ssl_protocols  TLSv1.1 TLSv1.2;
-  ssl_ciphers HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
+  ssl_ciphers EECDH:RSA:HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!3DES:!SEED:!IDEA:!MD5:!PSK:!RC4;
   ssl_prefer_server_ciphers on;
 
   include "snippets/common-headers.conf";
   add_header Content-Security-Policy "default-src 'self' data: wss: api.github.com *.tile.openstreetmap.org *.gstatic.com *.googleapis.com; style-src 'self' 'unsafe-inline' *.googleapis.com;";
+
+  error_page 502 /public/502.html;
+  location /public {
+      root  /www;
+  }
 
   location / {
     proxy_pass       http://webserver;
@@ -52,9 +57,4 @@ server {
 
   include "snippets/shell.conf";
   include "snippets/ws-api.conf";
-
-  error_page 502 /502.html;
-  location = /502.html {
-      root  /;
-  }
 }

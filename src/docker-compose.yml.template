@@ -47,6 +47,7 @@ services:
   postgres:
     container_name: unms-postgres
     image: postgres:9.6.1-alpine
+    command: postgres -c log_min_duration_statement=500
     restart: always
     depends_on:
       - fluentd
@@ -105,6 +106,7 @@ services:
       - WS_PORT=${UNMS_WS_PORT}
       - WS_SHELL_PORT=${UNMS_WS_SHELL_PORT}
       - UNMS_WS_API_PORT=${UNMS_WS_API_PORT}
+      - NETFLOW_PORT=${NETFLOW_PORT}
       - SSL_CERT=${SSL_CERT}
       - PUBLIC_HTTPS_PORT=${PUBLIC_HTTPS_PORT}
       - PUBLIC_WS_PORT=${PUBLIC_WS_PORT}
@@ -117,6 +119,7 @@ services:
       - no_proxy=${no_proxy}
       - NO_PROXY=${NO_PROXY}
       - SECURE_LINK_SECRET=${SECURE_LINK_SECRET}
+      - CLUSTER_SIZE=${CLUSTER_SIZE}
     cap_add:
       - NET_ADMIN
 
@@ -156,3 +159,26 @@ services:
       - UNMS_WS_API_PORT=${UNMS_WS_API_PORT}
       - PUBLIC_HTTPS_PORT=${PUBLIC_HTTPS_PORT}
       - SECURE_LINK_SECRET=${SECURE_LINK_SECRET}
+
+  netflow:
+    image: ${DOCKER_IMAGE}-netflow:${VERSION}
+    container_name: unms-netflow
+    user: "${USER_ID}"
+    restart: always
+    ports:
+      - "${NETFLOW_PORT}:${NETFLOW_PORT}/udp"
+    networks:
+      - internal
+      - public
+    depends_on:
+      - fluentd
+      - postgres
+      - rabbitmq
+      - redis
+    logging:
+      driver: fluentd
+      options:
+        tag: "netflow"
+        fluentd-async-connect: "true"
+    environment:
+      - NETFLOW_PORT=${NETFLOW_PORT}

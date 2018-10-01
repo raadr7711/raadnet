@@ -10,11 +10,14 @@ appDir="${homeDir}/app"
 requestUpdateFile="${homeDir}/data/update/request-update"
 updateLogFile="${homeDir}/data/update/update.log"
 lastUpdateFile="${homeDir}/data/update/last-update"
+lastConntrackFile="${homeDir}/data/update/last-conntrack"
 tmpDir="${homeDir}/tmp"
 installScript="${tmpDir}/unms_install.sh"
 installScriptUrl="https://raw.githubusercontent.com/Ubiquiti-App/UNMS/${branch}/install.sh"
 rollbackDir="${homeDir}/rollback"
 defaultDockerImage="ubnt/unms"
+
+CONNTRACK_FREQUENCY=604800 # one week in seconds
 
 # update the update daemon's last activity timestamp
 date +%s > "${lastUpdateFile}"
@@ -33,6 +36,16 @@ if [[ " $args" =~ $versionRegex ]]; then
   echo "version=${version}"
 fi
 
+# abuse update script to clear netflow ports from conntrack table once in a while
+if [ "${cron}" = true ]; then
+  if [ ! -f "${lastConntrackFile}" ] || [ "$(cat $lastConntrackFile)" -le $(( $(date +%s) - CONNTRACK_FREQUENCY)) ]; then
+    NETFLOW_PORT=$(source "${appDir}/unms.conf" && echo "${NETFLOW_PORT}")
+    if [ -n "${NETFLOW_PORT}" ]; then
+      docker run --net=host --privileged --rm ubnt/ucrm-conntrack -D -p udp --dport="${NETFLOW_PORT}" 2>/dev/null >/dev/null || true
+    fi
+    date +%s > "${lastConntrackFile}"
+  fi
+fi
 
 # if run by crontab, check if UNMS requested an update
 if [ "${cron}" = false ] || [ -f "${requestUpdateFile}" ]; then
@@ -108,7 +121,8 @@ if [ "${cron}" = false ] || [ -f "${requestUpdateFile}" ]; then
     echo >&2 "$(date) UNMS update failed"
     exit 1
   fi
+else
+  echo "$(date) UNMS update not requested."
 fi
 
-echo "$(date) UNMS update not requested."
 exit 0

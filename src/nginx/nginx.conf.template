@@ -5,7 +5,7 @@ user unms nogroup;
 # Reference: http://docs.gunicorn.org/en/stable/deploy.html
 # worker_processes defines the number of worker processes.
 # A recommended value for this parameter is the number of cores that are being used by your server.
-worker_processes auto;
+worker_processes ${WORKER_PROCESSES};
 
 error_log /dev/stderr;
 
@@ -45,27 +45,28 @@ http {
   }
 
   upstream webserver {
-    server unms:${UNMS_HTTP_PORT};
+    server ${UNMS_HOST}:${UNMS_HTTP_PORT};
   }
 
   upstream websocket {
-    server unms:${UNMS_WS_PORT};
+    server ${UNMS_HOST}:${UNMS_WS_PORT};
   }
 
   upstream shell {
-    server unms:${UNMS_WS_SHELL_PORT};
+    server ${UNMS_HOST}:${UNMS_WS_SHELL_PORT};
   }
 
   upstream ws_api {
-    server unms:${UNMS_WS_API_PORT};
+    server ${UNMS_HOST}:${UNMS_WS_API_PORT};
   }
 
   server {
     listen 12345;
 
-    location /cert {
+    location /refresh-certificate {
       content_by_lua_block {
         domain = ngx.var.arg_domain;
+        type = ngx.var.arg_type;
 
         function log(message)
           -- prints given message to nginx log
@@ -78,39 +79,14 @@ http {
         if not string.find(domain, "^[%w%.:-]+$") then
           log('/cert called with invalid domain "' .. domain .. '"');
           ngx.status = 400
-          ngx.say('Invalid domain')
+          ngx.print('Invalid domain')
           return ngx.exit(400)
         end
-
-        log('Calling cert.sh "' .. domain .. '"');
-        result=os.execute('/cert.sh "' .. domain .. '"')
-        if result ~= 0 then
-          ngx.status = 500
-          ngx.say('Failed to create self-signed SSL certificate')
-          return ngx.exit(500)
-        else
-          ngx.say('OK')
-          return ngx.exit(200)
-        end
-      }
-    }
-
-    location /letsencrypt {
-      content_by_lua_block {
-        domain = ngx.var.arg_domain;
-
-        function log(message)
-          -- prints given message to nginx log
-          message = string.gsub(message, "'", "'\\''")
-          os.execute("echo '" .. message .. "'")
-        end
-
-        -- don't continue if domain is empty or contains characters not allowed in domains or IP addresses
-        -- allowed characters are [a-z A-Z 0-9 . : -]
-        if not string.find(domain, "^[%w%.:-]+$") then
-          log('/letsencrypt called with invalid domain "' .. domain .. '"');
+        -- don't continue if certificate type contains invalid characters
+        if not string.find(type, "^[%w-]+$") then
+          log('/cert called with invalid type "' .. type .. '"');
           ngx.status = 400
-          ngx.say('Invalid domain')
+          ngx.print('Invalid cert type, expected "custom", "self-signed" or "lets-encrypt"')
           return ngx.exit(400)
         end
 
@@ -123,15 +99,17 @@ http {
           return code == 0 and true or false, code, output
         end
 
-        log('Calling letsencrypt.sh "' .. domain .. '"');
-        success, code, output = execute('/letsencrypt.sh "' .. domain .. '"')
+        log('Calling refresh-certificate.sh --' .. type ..' "' .. domain .. '"');
+        success, code, output = execute('/refresh-certificate.sh --' .. type ..' "' .. domain .. '"')
         log(output)
         if code ~= 0 then
+          ngx.req.set_header("Content-Type", "text/plain")
           ngx.status = 500
-          ngx.say(output)
+          ngx.print(output)
           return ngx.exit(500)
         else
-          ngx.say('OK')
+          ngx.req.set_header("Content-Type", "text/plain")
+          ngx.print('OK')
           return ngx.exit(200)
         end
       }

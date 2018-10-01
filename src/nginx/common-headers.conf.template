@@ -5,4 +5,5 @@ add_header x-content-type-options nosniff;
 add_header x-download-options noopen;
 add_header x-frame-options DENY;
 add_header x-xss-protection "1; mode=block";
+add_header feature-policy "camera 'none'; microphone 'none'; magnetometer 'none'; gyroscope 'none'; speaker 'none'; vibrate 'none'; payment 'none'";
 add_header Referrer-Policy same-origin;

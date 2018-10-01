@@ -9,22 +9,66 @@ export COMPOSE_PROJECT_NAME="unms"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 APP_DIR="${SCRIPT_DIR}"
-DATA_DIR=$( readlink -f ${APP_DIR}/../data )
-DOCKER_COMPOSE_FILENAME="docker-compose.yml"
-DOCKER_COMPOSE_FILE="${APP_DIR}/${DOCKER_COMPOSE_FILENAME}"
+DATA_DIR=$( readlink -f "${APP_DIR}/../data" )
+DOCKER_COMPOSE_FILE="${APP_DIR}/docker-compose.yml"
+CONF_FILE="${APP_DIR}/unms.conf"
 
-# Log given message and exit.
+USAGE="Usage:
+  unms-cli [-h] COMMAND [COMMAND_ARGS]
+
+Commands:
+  start
+    - Starts UNMS.
+  stop
+    - Stops UNMS.
+  restart
+    - Restarts UNMS.
+
+Troubleshooting commands:
+  fix-redis-aof
+    - Fixes redis append only file. Use if the aof file became corrupted.
+  rewrite-redis-aof
+    - Forces a rewrite of redis append only file. Use if the aof file became too large.
+  refresh-certificate
+    - Updates Let's Encrypt or custom certificate. Use if certificate expired and UI is inaccessible.
+  reduce-device-update-frequency
+    - Use if UNMS is overwhelmed with device updates and UI is inaccessible. Otherwise change device
+      update frequency in UI in 'Settings -> Devices -> General Settings -> Device Update Frequency'.
+  clear-device-backups
+    - Use if device backups are using too much disk space.
+  set-workers COUNT
+    - Set number of worker processes that are managing device connections. Use this option to better utilize
+      multicore processors.
+"
+
+# Log given message and exit with code 1.
 fail() {
   echo >&2 "$1"
   exit 1
 }
 
-if [ ! -f "${DOCKER_COMPOSE_FILE}" ]; then
-  fail "Docker Compose file '${DOCKER_COMPOSE_FILE}' not found."
-fi
+# Print given message and the usage and exit with code 1.
+failWithUsage() {
+  echo -e "Error: $1" >&2
+  echo
+  echo -e "${USAGE}" >&2
+  exit 1
+}
+
+# Print given message and given usage text and exit with code 1.
+failWithCommandUsage() {
+  echo -e "Error: $1" >&2
+  echo
+  echo -e "$2" >&2
+  exit 1
+}
+
+dockerCompose() {
+  docker-compose -p unms -f "${DOCKER_COMPOSE_FILE}" "$@"
+}
 
 isRunning() {
-  status=$(docker-compose ps -q) || fail "Failed to determine UNMS status."
+  status=$(dockerCompose ps -q) || fail "Failed to determine UNMS status."
 
   if [ "${status}" = "" ]; then
     return 1
@@ -33,119 +77,224 @@ isRunning() {
   fi
 }
 
+resetUdpConnections() {
+  NETFLOW_PORT=$(source "${CONF_FILE}" && echo "${NETFLOW_PORT}")
+  if [ -n "${NETFLOW_PORT}" ]; then
+    docker run --net=host --privileged --rm ubnt/ucrm-conntrack -D -p udp --dport="${NETFLOW_PORT}" || true
+  fi
+}
+
 start() {
   echo "Starting UNMS..."
-  docker-compose up -d || fail "Failed to start UNMS."
+  resetUdpConnections
+  dockerCompose up -d || fail "Failed to start UNMS."
   echo "UNMS started."
 }
 
 stop() {
   echo "Stopping UNMS..."
-  docker-compose down || fail "Failed to stop UNMS."
+  dockerCompose down || fail "Failed to stop UNMS."
   echo "UNMS stopped."
 }
 
+run-start() {
+  if isRunning; then
+    echo "UNMS is already running."
+  else
+    start
+  fi
+}
+
+run-stop() {
+  if isRunning; then
+    stop
+  else
+    echo "UNMS is not running."
+  fi
+  echo "To completely remove all UNMS data, please delete directories ${DATA_DIR} and ${APP_DIR}"
+  echo "You may also wish to remove the UNMS user account."
+}
+
+run-restart() {
+  if isRunning; then
+    stop
+  fi
+  start
+}
+
 # Check redis append only file in ../data/redis/appendonly.aof and fix it if necessary.
-fix-redis-aof() {
-  docker-compose run --no-deps --rm --entrypoint /usr/local/bin/redis-check-aof redis --fix /data/db/appendonly.aof <<EOF
+run-fix-redis-aof() {
+  if isRunning; then
+    fail "Please stop UNMS first:
+    sudo bash ${SCRIPT_DIR}/unms-cli stop"
+  fi
+  dockerCompose run --no-deps --rm --entrypoint /usr/local/bin/redis-check-aof redis --fix /data/db/appendonly.aof <<EOF
 Y
 EOF
 }
 
 # Shrink the redis append only file in ../data/redis/appendonly.aof.
-rewrite-redis-aof() {
-  docker-compose -p unms exec redis redis-cli bgrewriteaof || fail "Failed to rewrite redis appendonly file."
+run-rewrite-redis-aof() {
+  if ! isRunning; then
+    fail "UNMS is not running, start it with:
+    sudo bash ${SCRIPT_DIR}/unms-cli start"
+  fi
+  dockerCompose exec redis redis-cli bgrewriteaof || fail "Failed to rewrite redis appendonly file."
 }
 
-refresh-certificate() {
-  SSL_CERT=$(source unms.conf && echo "${SSL_CERT}")
-  if ! [ -e "../data/cert/domain" ]; then
-    fail "Domain file not found."
+run-refresh-certificate() {
+  if ! isRunning; then
+    fail "UNMS is not running, start it with:
+    sudo bash ${SCRIPT_DIR}/unms-cli start"
   fi
+  settings="$(dockerCompose exec redis redis-cli --raw get nms:nms | sed 's/\r//g' | tr -d '\n')" || fail "Failed to get UNMS settings."
+  domain="$(echo "${settings}" | grep '"hostname":"' | sed 's/.*"hostname":"\([^"]*\)".*/\1/')" || fail "Failed to determine hostname from UNMS settings."
 
-  DOMAIN=$(head -n 1 ../data/cert/domain)
-  if [ -n "${SSL_CERT}" ]; then
-    # Refresh custom certificate if it changed.
-    docker-compose -p unms exec nginx sudo -E -u unms /cert.sh "${DOMAIN}"
+  if echo "${settings}" | grep '"useLetsEncrypt":true' >/dev/null; then
+    echo "Refreshing Let's Encrypt certificate."
+    dockerCompose exec nginx sudo -E -u unms /refresh-certificate.sh --lets-encrypt "${domain}"
+  else if [ -n "$(source "${CONF_FILE}" && echo "${SSL_CERT}")" ]; then
+    echo "Refreshing custom certificate."
+    dockerCompose exec nginx sudo -E -u unms /refresh-certificate.sh --custom "${domain}"
   else
-    # Refresh Let's Encrypt certificate.
-    docker-compose -p unms exec nginx sudo -E -u unms /letsencrypt.sh "${DOMAIN}"
+    echo "Refreshing self-signed certificate."
+    dockerCompose exec nginx sudo -E -u unms /refresh-certificate.sh --self-signed "${domain}"
+  fi
   fi
 }
 
-reduce-device-update-frequency() {
+run-reduce-device-update-frequency() {
+  if ! isRunning; then
+    fail "UNMS is not running, start it with:
+    sudo bash ${SCRIPT_DIR}/unms-cli start"
+  fi
   local originalSettings
   local updatedSettings
-  originalSettings=$(docker-compose -p unms exec redis redis-cli --raw get nms:nms | sed 's/\r//g' | tr -d '\n') || fail "Failed to get UNMS settings."
+  originalSettings=$(dockerCompose exec redis redis-cli --raw get nms:nms | sed 's/\r//g' | tr -d '\n') || fail "Failed to get UNMS settings."
   updatedSettings=$(echo -n "${originalSettings}" | sed 's/deviceTransmissionProfile\":\"[^\"]*/deviceTransmissionProfile\":\"auto/')
-  docker-compose -p unms exec redis redis-cli set nms:nms "${updatedSettings}" || fail "Failed to update UNMS settings."
-  echo "Device connection frequency changed to 'auto'. Please restart UNMS to apply changes: sudo bash ${SCRIPT_DIR}/unms-cli restart"
+  dockerCompose exec redis redis-cli set nms:nms "${updatedSettings}" || fail "Failed to update UNMS settings."
+  echo "Device connection frequency changed to 'auto'. Please restart UNMS to apply changes:
+    sudo bash ${SCRIPT_DIR}/unms-cli restart"
 }
-(
-  cd "${APP_DIR}"
 
-  if [ "$*" = "stop" ]; then
-    if isRunning; then
-      stop
-    else
-      echo "UNMS is not running"
-    fi
-    echo "To completely remove all UNMS data, please delete directories ${DATA_DIR} and ${APP_DIR}"
-    echo "You may also wish to remove the UNMS user account."
-    exit 0
+run-clear-device-backups() {
+  if ! isRunning; then
+    fail "UNMS is not running, start it with:
+    sudo bash ${SCRIPT_DIR}/unms-cli start"
   fi
-
-  if [ "$*" = "start" ]; then
-    if isRunning; then
-      echo "UNMS is already running"
-    else
-      start
-    fi
-    exit 0
+  local backupsDir="${DATA_DIR}/config-backups"
+  local backupDir=""
+  local backupIds=""
+  local deviceId=""
+  local fifthFile=""
+  local fileCount=0
+  local deletedCount=0
+  local deviceDeletedCount=0
+  local totalDeletedCount=0
+  local batch=100 # delete in batches so we do not hit ARG_MAX in case of huge number of backups
+  for backupDir in $(find "${backupsDir}" -type d ! -path "${backupsDir}"); do
+    # Count backup files, skip directory if it contains less than 5 files.
+    fileCount=$(ls -1 "${backupDir}" | wc -l) || fail "Failed to count files in '${backupDir}'"
+    test "${fileCount}" -gt 5 || continue
+    # Find fifth newest file and delete all files with older modification time
+    fifthFile=$(find "${backupDir}" -type f -printf "%T@ %p\n" | sort -n | tail -5 | head -1 | sed 's/[0-9.]* //') || fail "Failed to find fifth oldest file in '${backupDir}'"
+    test -n "${fifthFile}" || fail "Backup dir '${backupDir}' is empty" # this should not happen, we checked that the file count was greater than 5
+    while true; do
+      backupIds=$(find "${backupDir}" -type f ! -newer "${fifthFile}" ! -name $(basename "${fifthFile}") -exec basename 2>/dev/null {} \; | head -n 100 | tr '\r\n' ' ') || fail "Failed to clean old backups in '${backupDir}'"
+      test -n "${backupIds}" || break
+      deviceId=$(basename "${backupDir}")
+      (cd "${backupDir}" && rm ${backupIds})
+      ids=$(echo "${backupIds}" | sed "s/ *$//" | sed "s/ /','/g" | sed "s/^/'/" | sed "s/$/'/") # "a b " -> "'a','b'"
+      dockerCompose exec postgres psql -U postgres -d unms -w -c "delete from device_backup where backup_id in (${ids})" > /dev/null
+      deletedCount=$(echo ${backupIds} | wc -w)
+      deviceDeletedCount=$((${deviceDeletedCount} + ${deletedCount}))
+    done
+    totalDeletedCount=$((${totalDeletedCount} + ${deletedCount}))
+    echo "${backupDir}: deleted ${deletedCount}"
+  done
+  echo "Done. Deleted ${totalDeletedCount} files."
+  if [ "${totalDeletedCount}" -gt 0 ]; then
+    echo -e "Please restart UNMS to apply changes:
+    sudo bash ${SCRIPT_DIR}/unms-cli restart"
   fi
+}
 
-  if [ "$*" = "restart" ]; then
-    if isRunning; then
-      stop
-    fi
-    start
-    exit 0
-  fi
+run-set-workers() {
+  local command_usage="Usage:
+  unms-cli set-workers [-h] COUNT"
+  local workers=""
+  while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
+      -h|--help)
+        echo "${command_usage}"
+        exit 0
+        ;;
+      *)
+        test -z "${workers}" || failWithCommandUsage "Unexpected argument '$1'" "${command_usage}"
+        # first positional argument is the worker count
+        workers="$1"
+        ;;
+    esac
+    shift # past argument key
+  done
 
-  if [ "$*" = "fix-redis-aof" ]; then
-    if isRunning; then
-      fail "Please stop UNMS first with 'unms-cli stop'"
-    fi
+  # Check arguments.
+  test -n "${workers}" || failWithCommandUsage "Missing worker COUNT argument." "${command_usage}"
+  [[ "${workers}" =~ ^[1-8]$ ]] || [[ "${workers}" = "auto" ]] || fail "Worker COUNT must be a number in range 1-8 or 'auto'."
 
-    fix-redis-aof
-    exit 0
-  fi
+  # Read current value.
+  currentWorkers=$(source "${CONF_FILE}" && echo "${CLUSTER_SIZE}") || fail "Failed to get current worker count."
 
-  if [ "$*" = "rewrite-redis-aof" ]; then
-    if ! isRunning; then
-      fail "UNMS is not running"
-    fi
+  echo "Current number of worker processes: ${currentWorkers}"
+  echo "New number of worker processes: ${workers}"
 
-    rewrite-redis-aof
-    exit 0
-  fi
+  # Update
+  sed -i 's/CLUSTER_SIZE.*/CLUSTER_SIZE="'${workers}'"/' "${CONF_FILE}" || fail "Failed to update '${CONF_FILE}'"
+  sed -i 's/CLUSTER_SIZE.*/CLUSTER_SIZE='${workers}'/' "${DOCKER_COMPOSE_FILE}" || fail "Failed to update '${DOCKER_COMPOSE_FILE}'"
 
-  if [ "$*" = "refresh-certificate" ]; then
-    if ! isRunning; then
-      echo "UNMS is not running"
-    fi
-    refresh-certificate
-    exit 0
-  fi
+  echo -e "Number of worker processes set to ${workers}. Please restart UNMS to apply changes:
+    sudo bash ${SCRIPT_DIR}/unms-cli restart"
+}
 
-  if [ "$*" = "reduce-device-update-frequency" ]; then
-    if ! isRunning; then
-      echo "UNMS is not running"
-    fi
-    reduce-device-update-frequency
-    exit 0
-  fi
+# Parse global arguments and command.
+# Command specific arguments will be parsed in run-COMMAND method.
+export COMMAND=""
+while [[ $# -gt 0 ]]; do
+  key="$1"
+  case $key in
+    -h|--help)
+      echo
+      echo -e "${USAGE}"
+      exit 0
+      ;;
+    *)
+      test -z "${COMMAND}" || failWithUsage "Unexpected argument: '$1'"
+      # first positional argument is the COMMAND
+      COMMAND="$1"
+      shift
+      break
+      ;;
+  esac
+  shift # past argument key
+done
+test -n "${COMMAND}" || failWithUsage "Missing COMMAND argument."
 
-  echo "Usage: unms-cli [start|stop|restart|fix-redis-aof|rewrite-redis-aof|refresh-certificate|reduce-device-update-frequency]"
-  exit 0
-)
+# Check that we have docker-compose file.
+test -f "${DOCKER_COMPOSE_FILE}" || fail "Docker Compose file '${DOCKER_COMPOSE_FILE}' not found."
+
+# Run command.
+case "${COMMAND}" in
+  start) run-start;;
+  stop) run-stop;;
+  restart) run-restart;;
+  fix-redis-aof) run-fix-redis-aof;;
+  rewrite-redis-aof) run-rewrite-redis-aof;;
+  refresh-certificate) run-refresh-certificate;;
+  reduce-device-update-frequency) run-reduce-device-update-frequency;;
+  clear-device-backups) run-clear-device-backups;;
+  set-workers) run-set-workers "$@";;
+  *)
+    failWithUsage "Unknown command: '${COMMAND}'"
+    ;;
+esac

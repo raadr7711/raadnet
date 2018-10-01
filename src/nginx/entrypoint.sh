@@ -19,12 +19,13 @@ if ! id -u unms &>/dev/null; then
 
   # determine local network address
   export LOCAL_NETWORK=$(ip route | tail -1 | cut -d' ' -f1) || true
+  # detect number of cores, make sure that there are at least 2 worker processes
+  export WORKER_PROCESSES=$(test "$(nproc)" -eq 1 && echo 2 || echo "auto")
 
   # create Nginx config files from templates
   echo "Creating Nginx config files"
   mkdir -p /etc/nginx/conf.d 2>/dev/null
   mkdir -p /etc/nginx/snippets 2>/dev/null
-
   /fill-template.sh "/nginx.conf.template" "/etc/nginx/nginx.conf"
   /fill-template.sh "/secure_links.conf.template" "/etc/nginx/snippets/secure_links.conf"
   /fill-template.sh "/ws-api.conf.template" "/etc/nginx/snippets/ws-api.conf"
@@ -109,18 +110,14 @@ if ! id -u unms &>/dev/null; then
 fi
 
 # generate self-signed SSL certificate if none is provided or existing
-if [ -z "${SSL_CERT}" ]; then
-  if [ -f /cert/live.crt ] && [ -f /cert/live.key ]; then
-    echo "Will use existing SSL certificate"
-  else
-    echo "Generating self-signed certificate without domain names"
-    SAN="DNS:localhost" openssl req -nodes -x509 -newkey "rsa:2048" -subj "/CN=localhost" -keyout "/cert/live.key" -out "/cert/live.crt" -days "36500" -batch -config "openssl.cnf"
-    chown -R unms /cert/*
-  fi
+if [ -e /cert/live.crt ] && [ -e /cert/live.key ]; then
+  echo "Will use existing SSL certificate"
 else
-  # Copy user certs to /cert, join cert and chain if necessary.
-  echo "Will use custom SSL certificate"
-  /copy-user-certs.sh
+  if [ -z "${SSL_CERT}" ]; then
+    sudo --preserve-env -u unms /refresh-certificate.sh --self-signed localhost --no-reload
+  else
+    sudo --preserve-env -u unms /refresh-certificate.sh --custom localhost --no-reload
+  fi
 fi
 
 echo "Entrypoint finished"

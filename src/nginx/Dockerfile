@@ -1,21 +1,11 @@
 FROM alpine:3.7
 USER root
 
-ENV NGINX_UID=1000 \
-    NGINX_VERSION=nginx-1.12.2 \
-    LUAJIT_VERSION=2.1.0-beta3 \
-    HTTP_PORT=80 \
-    HTTPS_PORT=443 \
-    WS_PORT=443 \
-    UNMS_HTTP_PORT=8081 \
-    UNMS_WS_PORT=8082 \
-    UNMS_WS_SHELL_PORT=8083 \
-    UNMS_WS_API_PORT=8084 \
-    PUBLIC_HTTPS_PORT=443 \
-    SECURE_LINK_SECRET=enigma
+ENV NGINX_VERSION=nginx-1.12.2 \
+    LUAJIT_VERSION=2.1.0-beta3
 
 RUN devDeps="wget openssl-dev pcre-dev zlib-dev build-base libffi-dev python-dev build-base" \
-    && apk add --no-cache --update ${devDeps} sudo dumb-init openssl pcre libgcc gettext py-pip \
+    && apk add --no-cache --update ${devDeps} sudo dumb-init openssl pcre libgcc gettext py-pip coreutils \
     && pip install certbot==0.21.0 \
     && mkdir -p /tmp/src && cd /tmp/src \
     && wget -q http://nginx.org/download/${NGINX_VERSION}.tar.gz -O nginx.tar.gz \
@@ -62,13 +52,30 @@ RUN devDeps="wget openssl-dev pcre-dev zlib-dev build-base libffi-dev python-dev
     && apk del ${devDeps} \
     && rm /usr/bin/luajit-${LUAJIT_VERSION} \
     && rm -rf /tmp/src \
-    && rm -rf /var/cache/apk/* \
-    && echo "unms ALL=(ALL) NOPASSWD: /usr/sbin/nginx -s *" >> /etc/sudoers \
-    && echo "unms ALL=(ALL) NOPASSWD:SETENV: /copy-user-certs.sh reload" >> /etc/sudoers
+    && rm -rf /var/cache/apk/*
 
-COPY entrypoint.sh cert.sh letsencrypt.sh fill-template.sh copy-user-certs.sh openssl.cnf *.conf.template 502.html /
+ENV NGINX_UID=1000 \
+    HTTP_PORT=80 \
+    HTTPS_PORT=443 \
+    WS_PORT=443 \
+    UNMS_HOST=unms \
+    UNMS_HTTP_PORT=8081 \
+    UNMS_WS_PORT=8082 \
+    UNMS_WS_SHELL_PORT=8083 \
+    UNMS_WS_API_PORT=8084 \
+    PUBLIC_HTTPS_PORT=443 \
+    SECURE_LINK_SECRET=enigma
 
-RUN chmod +x /entrypoint.sh /cert.sh /letsencrypt.sh /fill-template.sh /copy-user-certs.sh
+RUN echo "unms ALL=(ALL) NOPASSWD: /usr/sbin/nginx -s *" >> /etc/sudoers \
+    && echo "unms ALL=(ALL) NOPASSWD: /bin/cat *" >> /etc/sudoers
+
+COPY entrypoint.sh refresh-certificate.sh fill-template.sh openssl.cnf *.conf.template /
+
+RUN mkdir -p -m 777 /www
+
+COPY public /www/public
+
+RUN chmod +x /entrypoint.sh /fill-template.sh /refresh-certificate.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
 
