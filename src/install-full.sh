@@ -850,46 +850,37 @@ stop_docker_containers() {
   fi
 }
 
+try_to_bind_port() {
+  local port="${1}"
+  local protocol="${2}" # tcp or udp
+  # Try to create docker container that bounds given port.
+  docker run --rm -p "${port}:${port}/${protocol}" --entrypoint /bin/echo "${DOCKER_IMAGE}:${VERSION}" "Port ${port}/${protocol} is free." 2>/dev/null
+}
+
 check_free_ports() {
   echo "Checking available ports"
-  while nc -z 127.0.0.1 "${HTTP_PORT}" >/dev/null 2>&1; do
-    if [ "$UNATTENDED" = true ]; then
-      echo >&2 "ERROR: Port ${HTTP_PORT} is in use."
-      exit 1;
-    fi
+  while ! try_to_bind_port "${HTTP_PORT}" "tcp"; do
+    test "$UNATTENDED" = "false" || fail "Port ${HTTP_PORT} is in use."
     read -r -p "Port ${HTTP_PORT} is already in use, please choose a different HTTP port for UNMS. [${ALTERNATIVE_HTTP_PORT}]: " HTTP_PORT
     HTTP_PORT=${HTTP_PORT:-$ALTERNATIVE_HTTP_PORT}
   done
 
-  while nc -z 127.0.0.1 "${HTTPS_PORT}" >/dev/null 2>&1; do
-    if [ "$UNATTENDED" = true ]; then
-      echo >&2 "ERROR: Port ${HTTPS_PORT} is in use."
-      exit 1;
-    fi
+  while ! try_to_bind_port "${HTTPS_PORT}" "tcp"; do
+    test "$UNATTENDED" = "false" || fail "Port ${HTTPS_PORT} is in use."
     read -r -p "Port ${HTTPS_PORT} is already in use, please choose a different HTTPS port for UNMS. [${ALTERNATIVE_HTTPS_PORT}]: " HTTPS_PORT
     HTTPS_PORT=${HTTPS_PORT:-$ALTERNATIVE_HTTPS_PORT}
   done
 
-  while true; do
-    timeout 3 nc -ul 127.0.0.1 -p "${NETFLOW_PORT}" 2>/dev/null 2>&1 && RC=$? || RC=$? # this command fails with code 1 if port is occupied or 143 if port is free (and nc is is killed by timeout)
-    if [ "${RC}" = 1 ]; then
-      # Port is used
-      if [ "$UNATTENDED" = true ]; then
-        echo >&2 "WARNING: Port ${NETFLOW_PORT} is in use. Selecting ${ALTERNATIVE_NETFLOW_PORT} port for NetFlow."
-        NETFLOW_PORT="${ALTERNATIVE_NETFLOW_PORT}"
-        break;
-      else
-        read -r -p "Port ${NETFLOW_PORT} is already in use, please choose a different NetFlow port for UNMS. [${ALTERNATIVE_NETFLOW_PORT}]: " NETFLOW_PORT
-        NETFLOW_PORT=${NETFLOW_PORT:-$ALTERNATIVE_NETFLOW_PORT}
-      fi
-    else # $? = 143 (= timeout expired)
-      # Port is unused
+  while ! try_to_bind_port "${NETFLOW_PORT}" "udp"; do
+    if [ "$UNATTENDED" = true ]; then
+      echo >&2 "WARNING: Port ${NETFLOW_PORT} is in use. Selecting ${ALTERNATIVE_NETFLOW_PORT} port for NetFlow."
+      NETFLOW_PORT="${ALTERNATIVE_NETFLOW_PORT}"
       break
+    else
+      read -r -p "Port ${NETFLOW_PORT} is already in use, please choose a different NetFlow port for UNMS. [${ALTERNATIVE_NETFLOW_PORT}]: " NETFLOW_PORT
+      NETFLOW_PORT=${NETFLOW_PORT:-$ALTERNATIVE_NETFLOW_PORT}
     fi
   done
-
-  export HTTP_PORT
-  export HTTPS_PORT
 }
 
 create_data_volumes() {
