@@ -6,7 +6,7 @@ echo "Running entrypoint.sh"
 uid=${NGINX_UID:-1000}
 
 # do this only once after creating the container
-if ! id -u unms &>/dev/null; then
+if ! id -u unms >/dev/null 2>&1; then
 
   # create unms user that will own nginx
   echo "Creating user unms with UID ${uid}"

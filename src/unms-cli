@@ -119,6 +119,7 @@ run-restart() {
   if isRunning; then
     stop
   fi
+  sleep 15
   start
 }
 

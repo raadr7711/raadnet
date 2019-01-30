@@ -140,9 +140,9 @@ generateLetsEncryptCert() {
   # - anything that ends with a digit (cannot be a valid domain name)
   # - anything with zero dots (cannot be a valid domain name)
   # - anything that contains : (must be an IPv6 address)
-  if echo "${DOMAIN}" | grep "[0-9]$" &>/dev/null \
-     || echo "${DOMAIN}" | grep "^[^.]*$" &>/dev/null \
-     || echo "${DOMAIN}" | grep ":" &>/dev/null
+  if echo "${DOMAIN}" | grep "[0-9]$" >/dev/null 2>&1 \
+     || echo "${DOMAIN}" | grep "^[^.]*$" >/dev/null 2>&1 \
+     || echo "${DOMAIN}" | grep ":" >/dev/null 2>&1
   then
      fallback "Let's Encrypt can only be used for fully qualified domain names."
   fi

@@ -47,7 +47,7 @@ services:
   postgres:
     container_name: unms-postgres
     image: postgres:9.6.1-alpine
-    command: postgres -c log_min_duration_statement=500
+    command: postgres -c log_min_duration_statement=500 -c deadlock_timeout=5000
     restart: always
     depends_on:
       - fluentd
@@ -106,7 +106,7 @@ services:
       - WS_PORT=${UNMS_WS_PORT}
       - WS_SHELL_PORT=${UNMS_WS_SHELL_PORT}
       - UNMS_WS_API_PORT=${UNMS_WS_API_PORT}
-      - NETFLOW_PORT=${NETFLOW_PORT}
+      - UNMS_NETFLOW_PORT=${NETFLOW_PORT}
       - SSL_CERT=${SSL_CERT}
       - PUBLIC_HTTPS_PORT=${PUBLIC_HTTPS_PORT}
       - PUBLIC_WS_PORT=${PUBLIC_WS_PORT}
@@ -181,4 +181,4 @@ services:
         tag: "netflow"
         fluentd-async-connect: "true"
     environment:
-      - NETFLOW_PORT=${NETFLOW_PORT}
+      - UNMS_NETFLOW_PORT=${NETFLOW_PORT}
