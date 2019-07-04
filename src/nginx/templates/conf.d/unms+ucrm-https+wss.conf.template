@@ -1,0 +1,44 @@
+map $http_upgrade $unms_upstream {
+  default ${UNMS_HOST}:${UNMS_WS_PORT};
+  ''      ${UNMS_HOST}:${UNMS_HTTP_PORT};
+}
+
+server {
+  listen ${HTTPS_PORT};
+
+  deny all;
+
+  set $unms_ws_api   ${UNMS_HOST}:${UNMS_WS_API_PORT};
+  set $unms_shell    ${UNMS_HOST}:${UNMS_WS_SHELL_PORT};
+  set $ucrm_upstream ${UCRM_HOST}:${UCRM_HTTP_PORT};
+  set $unms_secure_link_secret ${SECURE_LINK_SECRET};
+
+  include "snippets/ssl-cert.conf";
+  include "snippets/headers/unms-headers.conf";
+
+  error_page 502 /public/unms-502.html;
+  error_page 404 /public/404.html;
+
+  location = / {
+    allow all;
+    if ($http_upgrade = '') {
+      return 302 https://$http_host/${LOGIN_URI};
+    }
+    proxy_pass       http://$unms_upstream;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    include "snippets/unms-proxy.conf";
+    include "snippets/headers/unms-headers.conf";
+  }
+
+  location /nms/ {
+    include "ip-whitelist.conf";
+    proxy_pass       http://$unms_upstream;
+    include "snippets/unms-proxy.conf";
+    include "snippets/headers/unms-headers.conf";
+  }
+
+  include "snippets/common-locations.conf";
+  include "snippets/unms-locations.conf";
+  include "snippets/ucrm-locations.conf";
+}

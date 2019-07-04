@@ -1,0 +1,27 @@
+server {
+  listen ${HTTPS_PORT};
+  server_name ${UCRM_DOMAIN};
+
+  set $ucrm_upstream ${UCRM_HOST}:${UCRM_HTTP_PORT};
+
+  include "snippets/ssl-cert.conf";
+  include "snippets/headers/ucrm-headers.conf";
+
+  error_page 502 /public/ucrm-502.html;
+  error_page 404 /public/404.html;
+
+  location = / {
+    if ($http_upgrade = '') {
+      return 302 https://$http_host/${LOGIN_URI}$is_args$args;
+    }
+  }
+
+  location /crm/ {
+    proxy_pass       http://$ucrm_upstream;
+    include "snippets/ucrm-proxy.conf";
+    include "snippets/headers/ucrm-headers.conf";
+  }
+
+  include "snippets/common-locations.conf";
+  include "snippets/ucrm-locations.conf";
+}

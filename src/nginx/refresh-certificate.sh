@@ -74,7 +74,7 @@ generateSelfSignedCert() {
     export SAN # variable is used in openssl.cnf
     case "${DOMAIN}" in
       *:*)    SAN="IP:${DOMAIN},DNS:${DOMAIN}" ;; # contains ":" - IPv6 address
-      *[0-9]) SAN="IP:${DOMAIN},DNS:${DOMAIN}" ;; # ends with a digit - IPv4 address
+      *\.[0-9]{1,3}) SAN="IP:${DOMAIN},DNS:${DOMAIN}" ;; # ends with a digit - IPv4 address
       *)      SAN="DNS:${DOMAIN}" ;;              # else domain name
     esac
     openssl req -nodes -x509 -newkey rsa:4096 -subj "/CN=${DOMAIN}" -keyout "${key}" -out "${cert}" -days "36500" -batch -config "/openssl.cnf" 2> /dev/null || fail "Failed to generate self-signed certificate for '${DOMAIN}'"

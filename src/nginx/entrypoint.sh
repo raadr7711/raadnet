@@ -17,27 +17,18 @@ if ! id -u unms >/dev/null 2>&1; then
   mkdir -p /www
   chown unms /www
 
-  # determine local network address
-  export LOCAL_NETWORK=$(ip route | tail -1 | cut -d' ' -f1) || true
-  # detect number of cores, make sure that there are at least 2 worker processes
-  export WORKER_PROCESSES=$(test "$(nproc)" -eq 1 && echo 2 || echo "auto")
-
-  # create Nginx config files from templates
-  echo "Creating Nginx config files"
-  mkdir -p /etc/nginx/conf.d 2>/dev/null
-  mkdir -p /etc/nginx/snippets 2>/dev/null
-  /fill-template.sh "/nginx.conf.template" "/etc/nginx/nginx.conf"
-  /fill-template.sh "/secure_links.conf.template" "/etc/nginx/snippets/secure_links.conf"
-  /fill-template.sh "/ws-api.conf.template" "/etc/nginx/snippets/ws-api.conf"
-  /fill-template.sh "/shell.conf.template" "/etc/nginx/snippets/shell.conf"
-  /fill-template.sh "/common-headers.conf.template" "/etc/nginx/snippets/common-headers.conf"
-
-  WS_PORT=${WS_PORT:-${HTTPS_PORT}}
+  echo "Creating nginx configuration"
+  WS_PORT="${WS_PORT:-${HTTPS_PORT}}"
   if [ "${WS_PORT}" = "${HTTPS_PORT}" ]; then
-    /fill-template.sh "/combined.conf.template" "/etc/nginx/conf.d/combined.conf"
+    /refresh-configuration.sh --no-reload --no-ucrm
   else
-    /fill-template.sh "/https.conf.template" "/etc/nginx/conf.d/https.conf"
-    /fill-template.sh "/wss.conf.template" "/etc/nginx/conf.d/wss.conf"
+    /refresh-configuration.sh --no-reload --standalone-wss --no-ucrm
+  fi
+
+  if [ -n "${UNMS_IP_WHITELIST}" ]; then
+    /ip-whitelist.sh --no-reload --set "${UNMS_IP_WHITELIST}"
+  else
+    /ip-whitelist.sh --no-reload --clear
   fi
 
   # Archive the Let's Encrypt directories if they are using the old format.

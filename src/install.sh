@@ -15,11 +15,15 @@ if [[ " ${args}" =~ ${branchRegex} ]]; then
 fi
 echo "branch=${branch}"
 
-repo="https://raw.githubusercontent.com/Ubiquiti-App/UNMS/${branch}"
-
 versionRegex=" --version ([^ ]+)"
 if [[ " ${args}" =~ ${versionRegex} ]]; then
   version="${BASH_REMATCH[1]}"
+fi
+
+if [ -z "${version}" ] || [[ "${version}" =~ ^0 ]]; then
+  repo="https://raw.githubusercontent.com/Ubiquiti-App/UNMS/${branch}"
+else
+  repo="https://unms.com/v1/${branch}"
 fi
 
 if [ -z "${version}" ]; then
@@ -38,8 +42,9 @@ if ! mkdir "${temp}"; then
 fi
 
 cd "${temp}"
-echo "Downloading installation package for version ${version}."
-packageUrl="${repo}/unms-${version}.tar.gz"
+packageVersion="${version%%+*}" # package name never includes build number
+echo "Downloading installation package for version ${packageVersion}."
+packageUrl="${repo}/unms-${packageVersion}.tar.gz"
 if ! curl -sS "${packageUrl}" | tar xzf -; then
   echo >&2 "Failed to download installation package ${packageUrl}"
   exit 1

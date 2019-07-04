@@ -3,126 +3,149 @@ set -o nounset
 set -o errexit
 set -o pipefail
 
-args="$*"
-branch="##BRANCH##" # will be replaced by install script
-homeDir="##HOMEDIR##" # will be replaced by install script
-appDir="${homeDir}/app"
-requestUpdateFile="${homeDir}/data/update/request-update"
-updateLogFile="${homeDir}/data/update/update.log"
-lastUpdateFile="${homeDir}/data/update/last-update"
-lastConntrackFile="${homeDir}/data/update/last-conntrack"
-tmpDir="${homeDir}/tmp"
-installScript="${tmpDir}/unms_install.sh"
-installScriptUrl="https://raw.githubusercontent.com/Ubiquiti-App/UNMS/${branch}/install.sh"
-rollbackDir="${homeDir}/rollback"
-defaultDockerImage="ubnt/unms"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+CONTROL_DIR="$(realpath "${SCRIPT_DIR}/../data/control")"
+ARGUMENTS_FILE="${CONTROL_DIR}/arguments"
+LOCK_DIR="${CONTROL_DIR}/arguments.lock"
+LAST_RUN_LOG_FILE="${CONTROL_DIR}/last-run.log"
+LAST_RUN_FILE="${CONTROL_DIR}/last-run.timestamp"
+UNMS_CLI="${SCRIPT_DIR}/unms-cli"
+LOCKED="false"
+CRON="false"
+DEBUG="false"
 
-CONNTRACK_FREQUENCY=604800 # one week in seconds
+USAGE="Usage:
+  update.sh [-h] [--cron] [--debug]
 
-# update the update daemon's last activity timestamp
-date +%s > "${lastUpdateFile}"
+Executes '${UNMS_CLI}' with arguments parsed from file '${ARGUMENTS_FILE}'.
 
-cron=false
-cronRegex=" --cron"
-if [[ " $args" =~ $cronRegex ]]; then
-  cron=true
-  echo "cron=true"
-fi
+This script is executed by cron job or by systemd. It should not be run manually except
+for debugging purposes. Use the 'unms-cli' insetead.
 
-version=
-versionRegex=" --version ([^ ]+)"
-if [[ " $args" =~ $versionRegex ]]; then
-  version="${BASH_REMATCH[1]}"
-  echo "version=${version}"
-fi
+    --cron      Command output will be redirected to file ${CONTROL_DIR}/command-*.log
+                Other output will be redirected to ${LAST_RUN_LOG_FILE}.
+    --debug     Print additional debug messages.
+    -h, --help  Print usage and exit.
+"
 
-# abuse update script to clear netflow ports from conntrack table once in a while
-if [ "${cron}" = true ]; then
-  if [ ! -f "${lastConntrackFile}" ] || [ "$(cat $lastConntrackFile)" -le $(( $(date +%s) - CONNTRACK_FREQUENCY)) ]; then
-    NETFLOW_PORT=$(source "${appDir}/unms.conf" && echo "${NETFLOW_PORT}")
-    if [ -n "${NETFLOW_PORT}" ]; then
-      docker run --net=host --privileged --rm ubnt/ucrm-conntrack -D -p udp --dport="${NETFLOW_PORT}" 2>/dev/null >/dev/null || true
-    fi
-    date +%s > "${lastConntrackFile}"
-  fi
-fi
+# Log given message and exit with code 1.
+fail() {
+  error "Error: $1"
+  exit 1
+}
 
-# if run by crontab, check if UNMS requested an update
-if [ "${cron}" = false ] || [ -f "${requestUpdateFile}" ]; then
-  if [ "${cron}" = true ]; then
-    # if running as a cron job, redirect output to log file
-    exec > ${updateLogFile} 2>&1
-  fi
+# Print given message and the usage and exit with code 1.
+failWithUsage() {
+  error "Error: $1"
+  echo
+  echo -e "${USAGE}" >&2
+  exit 1
+}
 
-  echo "$(date) Updating UNMS..."
-
-  # read target version from update request file
-  if [ "${cron}" = true ] && [ -f "${requestUpdateFile}" ]; then
-    version=$(<"${requestUpdateFile}")
-    echo "Requested update to version ${version}"
-  fi
-
-  # remove the update request file
-  if ! rm -f "${requestUpdateFile}"; then
-    echo "$(date) Failed to remove update request file"
-    exit 1
-  fi
-
-  # create temporary directory to download new installation files
-  rm -rf "${tmpDir}"
-  if ! mkdir -p "${tmpDir}"; then
-    echo >&2 "$(date) Failed to create temp dir ${tmpDir}"
-    exit 1
-  fi
-
-  # download install script
-  if ! curl -fsSL "${installScriptUrl}" > "${installScript}"; then
-    echo >&2 "$(date) Failed to download install script"
-    exit 1
-  fi
-
-  # backup files necessary for rollback
-  rm -rf "${rollbackDir}"
-  mkdir -p "${rollbackDir}"
-  if ! cp -r "${appDir}/." "${rollbackDir}/"; then
-    echo >&2 "$(date) Failed to backup configuration"
-    exit 1
-  fi
-
-  # run installation
-  success=true
-  chmod +x "${installScript}"
-  args=( "--update" "--unattended" "--branch" "${branch}" "--docker-image" "${defaultDockerImage}" )
-  if [ ! -z "${version}" ]; then
-    args+=("--version" "${version}")
-  fi
-  echo "Starting UNMS installation with: ${args[@]}"
-  if ! "${installScript}" "${args[@]}" "$@"; then
-    echo >&2 "UNMS install script failed. Attempting rollback..."
-
-    mv -f "${rollbackDir}/unms.conf" "${appDir}/unms.conf"
-
-    if ! "${rollbackDir}/install-full.sh" --update --unattended; then
-      echo >&2 "Rollback failed"
-    else
-      echo "Rollback successful"
-    fi
-    success=false
-  fi
-
-  # remove temporary directories
-  rm -rf "${tmpDir}"
-  rm -rf "${rollbackDir}"
-
-  if [ "$success" = true ]; then
-    echo "$(date) UNMS update finished"
-    exit 0
+# Log given message to stderr or to log file.
+error() {
+  if [ "${CRON}" = "true" ] && [ "${LOCKED}" = "true" ]; then
+    echo -e "$1" >> "${LAST_RUN_LOG_FILE}"
   else
-    echo >&2 "$(date) UNMS update failed"
-    exit 1
+    echo -e "$1" >&2
   fi
-else
-  echo "$(date) UNMS update not requested."
+}
+
+# If running in debug mode then log given message to stdout or to log file. Otherwise do nothing.
+debug() {
+  if [ "${DEBUG}" = "true" ]; then
+    if [ "${CRON}" = "true" ]; then
+      # Ignore message if not holding the lock to prevent writing to other processe's log file.
+      if [ "${LOCKED}" = "true" ]; then
+        echo -e "$1" >> "${LAST_RUN_LOG_FILE}"
+      fi
+    else
+      echo -e "$1"
+    fi
+  fi
+}
+
+# Create lock directory or exit if the directory already exists.
+lockOrExit() {
+  if ! mkdir "${LOCK_DIR}" 2>/dev/null; then
+    debug "Lock already exists, another process is running."
+    exit 0
+  fi
+  trap unlock EXIT # To make sure that the lock file will be deleted.
+  rm -f "${LAST_RUN_LOG_FILE}"
+  LOCKED="true"
+  debug "Locked"
+}
+
+# Remove the lock directory.
+unlock() {
+  debug "Unlocked"
+  LOCKED="false"
+  rmdir "${LOCK_DIR}" || true
+}
+
+runCommand() {
+  if [ ! -f "${ARGUMENTS_FILE}" ]; then
+    debug "File '${ARGUMENTS_FILE}' not found. Nothing to do."
+    return 0
+  fi
+
+  local arguments=()
+  # Read argumetnts from file.
+  mapfile -n 10 -t arguments < "${ARGUMENTS_FILE}" # mapfile requires bash version 4 or greater
+  rm -f "${ARGUMENTS_FILE}"
+
+  # Whitelist of allowed commands.
+  local command="${arguments[0]}"
+  case "${command}" in
+    update);;
+    clear-conntrack);;
+    *)
+      fail "Command '${command}' is not supported."
+      ;;
+  esac
+
+
+  debug "Running 'unms-cli ${arguments[*]}'."
+  if [ "${CRON}" = "true" ]; then
+    # If running from cron redirect command output to file.
+    local logFile="${CONTROL_DIR}/command-${command}.log"
+    echo "$(date): Running 'unms-cli ${arguments[*]}'." > "${logFile}" 2>&1
+    if "${UNMS_CLI}" "${arguments[@]}" >> "${logFile}" 2>&1; then
+      echo "$(date): Command 'unms-cli ${arguments[*]}' finished." >> "${logFile}" 2>&1
+    else
+      echo "$(date): Command 'unms-cli ${arguments[*]}' failed." >> "${logFile}" 2>&1
+      exit 1
+    fi
+  else
+    "${UNMS_CLI}" "${arguments[@]}" || fail "Command 'unms-cli ${arguments[*]}' failed."
+    echo "Command 'unms-cli ${arguments[*]}' finished."
+  fi
+}
+
+if [ "${EUID}" = 0 ]; then
+  fail "Refusing to run as root to prevent creation of root-owned files."
 fi
 
-exit 0
+# Update the timestamp when this script last run.
+mkdir -p "${CONTROL_DIR}"
+date +%s > "${LAST_RUN_FILE}"
+
+# Parse arguments.
+export COMMAND=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      echo
+      echo -e "${USAGE}"
+      exit 0
+      ;;
+    --cron) CRON="true" ;;
+    --debug) DEBUG="true" ;;
+    *) failWithUsage "Unexpected argument: '$1'" ;;
+  esac
+  shift
+done
+
+lockOrExit
+runCommand

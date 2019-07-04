@@ -1,0 +1,41 @@
+server {
+  listen ${WS_PORT};
+
+  deny all;
+
+  set $unms_upstream ${UNMS_HOST}:${UNMS_WS_PORT};
+  set $unms_secure_link_secret ${SECURE_LINK_SECRET};
+
+  include "snippets/ssl-cert.conf";
+  include "snippets/headers/unms-headers.conf";
+
+  location = / {
+    allow all;
+    # redirect to UI for non-upgrade requests
+    if ($http_upgrade = "") {
+      return 301 https://$host:${PUBLIC_HTTPS_PORT}$request_uri;
+    }
+
+    proxy_pass       http://$unms_upstream;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    include "snippets/unms-proxy.conf";
+    include "snippets/headers/unms-headers.conf";
+  }
+
+  location / {
+    include "ip-whitelist.conf";
+    # redirect to UI for non-upgrade requests
+    if ($http_upgrade = "") {
+      return 301 https://$host:${PUBLIC_HTTPS_PORT}$request_uri;
+    }
+
+    proxy_pass       http://$unms_upstream;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    include "snippets/unms-proxy.conf";
+    include "snippets/headers/unms-headers.conf";
+  }
+
+  include "snippets/unms-firmware.conf";
+}

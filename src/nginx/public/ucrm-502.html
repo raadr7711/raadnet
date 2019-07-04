@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>UNMS is starting</title>
+  <script type="text/javascript">
+    function fetchHeartBeat() {
+      fetch('/crm/api/v1.0/version').then(function (response) {
+        if (response.status === 401) { // authorization is required but UCRM is running
+          window.location.reload(true);
+        } else {
+          setTimeout(fetchHeartBeat, 3000);
+        }
+      });
+    }
+
+    function onLoadPage() {
+      setTimeout(function () {
+        fetchHeartBeat();
+      }, 3000);  // 3 seconds
+
+      setTimeout(function () {
+        document.getElementById('startRocket').style.display = 'none';
+        document.getElementById('oops').style.display = 'flex';
+      }, 5 * 60 * 1000);  // 5 minutes
+    }
+  </script>
+  <style>
+    @font-face {
+      font-family: 'ubnt';
+      src: url('/public/ubnt.ttf');
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: 'Lato';
+      src: url('/public/lato-medium.woff');
+      font-weight: normal;
+      font-style: normal;
+    }
+
+    body {
+      overflow: hidden;
+      margin: 0;
+      font-family: "Lato", "Helvetica Neue", "Helvetica", Helvetica, Arial, sans-serif;
+      font-weight: 400;
+      font-size: 0.875rem;
+      min-height: 100%;
+    }
+
+    h1 {
+      font-size: 2.250rem;
+      font-weight: 500;
+      letter-spacing: 0.1px;
+      text-align: left;
+      color: #00a0df;
+    }
+
+    p {
+      font-size: 1.250em;
+      font-weight: 500;
+      text-align: left;
+      color: #6fbfde;
+    }
+
+    a {
+      color: #00a0df;
+      text-decoration: none;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .unifiContainer {
+      width: 100%;
+      min-height: 100%;
+      background-color: #ffffff;
+    }
+
+    .mainContainer {
+      width: 100%;
+      height: calc(100vh - 11.875rem);
+    }
+
+    @keyframes pulse {
+      0% {
+        bottom: -900px;
+      }
+      100% {
+        bottom: 100vh;
+      }
+    }
+
+    @keyframes shake {
+      10%, 90% {
+        transform: translate3d(-1px, 0, 0);
+      }
+
+      20%, 80% {
+        transform: translate3d(2px, 0, 0);
+      }
+
+      30%, 50%, 70% {
+        transform: translate3d(-3px, 0, 0);
+      }
+
+      40%, 60% {
+        transform: translate3d(3px, 0, 0);
+      }
+    }
+
+    .rocketContainer {
+      width: 100%;
+      /* min-height: 11.875rem; */
+      height: 1083px;
+      background: url("/public/rocket.svg") no-repeat;
+      background-position: right top;
+      animation: shake 0.75s 30s cubic-bezier(.36, .07, .19, .97) both 10,
+      pulse 300s 37s linear 1;
+      bottom: -900px;
+      position: absolute;
+    }
+
+    .login-account__logo {
+      color: #00a0df;
+      text-align: left;
+      font-size: 150px;
+      line-height: 0.4;
+      padding-top: 4rem;
+      padding-left: 4rem;
+    }
+
+    .icon {
+      font-family: 'ubnt';
+    }
+
+    .ubnt-icon--unms:before {
+      content: "\e939";
+    }
+
+    .textContainer {
+      margin: 0 auto;
+      width: fit-content;
+      height: calc(100vh - 350px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .verticalChild {
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    .screenContainer {
+      display: none;
+      /* display: flex; */
+      background-color: #ffffff;
+      background-image: none;
+      padding: 0;
+      height: 100vh;
+      flex-direction: column;
+    }
+
+    .screenContainer__content {
+      height: 100%;
+      width: 100%;
+      justify-content: space-between;
+      display: flex;
+      flex-direction: row;
+      margin-top: 20vh;
+    }
+
+    .screenContainer__text {
+      padding: 0 7%
+    }
+
+    .screenContainer__image {
+      height: 100%;
+      padding: 0 5%;
+    }
+
+    .screenContainer__text h1 {
+      color: #4c4c4c;
+    }
+
+    .screenContainer__text p {
+      font-size: 18px;
+      line-height: 1.44;
+      letter-spacing: 0.2px;
+      color: #a7acb0;
+      margin-bottom: 3rem;
+    }
+
+    .button--dark {
+      background-color: #4c4c4c !important;
+    }
+
+    .button {
+      padding: 0.7em 2em;
+      vertical-align: middle;
+      display: inline-block;
+      cursor: pointer;
+      font-size: 16px;
+      letter-spacing: 0.5px;
+      line-height: normal;
+      color: #fff !important;
+      text-decoration: none !important;
+      background-color: #00a0df;
+      border-radius: 2px;
+      border: none;
+      font-weight: 500;
+      text-align: center;
+      margin-right: 1rem;
+    }
+
+    .button--large {
+      padding-left: 3em;
+      padding-right: 3em;
+    }
+
+    .error-rocket {
+      width: 460px;
+      max-height: 400px;
+      min-height: 200px;
+      background: url("/public/errorRocket.svg") no-repeat;
+      background-size: contain;
+      background-position: right;
+    }
+
+    @media screen and (max-width: 70em) {
+      .screenContainer__content {
+        margin-top: 5%;
+        flex-direction: column;
+        align-items: center;
+        justify-content: end;
+      }
+
+      .screenContainer__text {
+        margin: 0 auto;
+      }
+
+      .screenContainer__image {
+        padding: 5%;
+        height: auto;
+      }
+
+      img {
+        float: right;
+      }
+    }
+  </style>
+</head>
+<body onload="onLoadPage()">
+<div class="unifiContainer" id="startRocket">
+  <div class="mainContainer">
+    <a href="https://unms.com/">
+      <div class="login-account__logo icon ubnt-icon--unms"></div>
+    </a>
+    <div class="textContainer">
+      <div class="verticalChild">
+        <div style="text-align: center">
+          <h1>UNMS is starting... </h1>
+          <p>This should not take more than a minute.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="rocketContainer"></div>
+</div>
+
+<div class="screenContainer" id="oops">
+  <a href="https://unms.com/">
+    <div class="login-account__logo icon ubnt-icon--unms"></div>
+  </a>
+  <div class="screenContainer__content">
+    <div class="screenContainer__text">
+      <h1>Oops! Something went wrong</h1>
+      <a
+        href="https://unms.com/community/report"
+        target="_blank"
+        rel="noreferrer noopener"
+        class="button button--dark"
+      >
+        Report
+      </a>
+      <button
+        type="button"
+        onClick="window.location.reload(true)"
+        class="button button--large"
+      >
+        Reload
+      </button>
+    </div>
+
+    <div class="screenContainer__image">
+      <img src="/public/errorRocket.svg" />
+    </div>
+  </div>
+</div>
+</body>
+</html>

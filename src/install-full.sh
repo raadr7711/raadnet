@@ -6,36 +6,6 @@ set -o pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PATH="${PATH}:/usr/local/bin"
 
-UNMS_HTTP_PORT="8081"
-UNMS_WS_PORT="8082"
-UNMS_WS_SHELL_PORT="8083"
-UNMS_WS_API_PORT="8084"
-ALTERNATIVE_HTTP_PORT="8080"
-ALTERNATIVE_HTTPS_PORT="8443"
-ALTERNATIVE_NETFLOW_PORT="2056"
-
-COMPOSE_PROJECT_NAME="unms"
-USERNAME=${UNMS_USER:-"unms"}
-if getent passwd ${USERNAME} >/dev/null; then
-  HOME_DIR="$(getent passwd ${USERNAME} | cut -d: -f6)"
-else
-  HOME_DIR=${UNMS_HOME_DIR:-"/home/${USERNAME}"}
-fi
-
-APP_DIR="${HOME_DIR}/app"
-DATA_DIR="${HOME_DIR}/data"
-RESTORE_DIR="${DATA_DIR}/unms-backups/restore"
-CONFIG_DIR="${APP_DIR}/conf"
-CONFIG_FILE="${APP_DIR}/unms.conf"
-DOCKER_COMPOSE_INSTALL_PATH="/usr/local/bin"
-DOCKER_COMPOSE_FILENAME="docker-compose.yml"
-DOCKER_COMPOSE_FILE="${APP_DIR}/${DOCKER_COMPOSE_FILENAME}"
-DOCKER_COMPOSE_TEMPLATE_FILENAME="docker-compose.yml.template"
-DOCKER_COMPOSE_TEMPLATE="${APP_DIR}/${DOCKER_COMPOSE_TEMPLATE_FILENAME}"
-
-# random key for secure link module
-SECURE_LINK_SECRET=$(export LC_ALL=C; head -c 500 /dev/urandom | tr -dc A-Za-z0-9 | head -c 100)
-
 # prerequisites "command|package"
 PREREQUISITES=(
   "curl|curl"
@@ -43,36 +13,105 @@ PREREQUISITES=(
   "envsubst|gettext-base"
 )
 
+COMPOSE_PROJECT_NAME="unms"
+USERNAME="${UNMS_USER:-unms}"
+if getent passwd "${USERNAME}" >/dev/null; then
+  HOME_DIR="$(getent passwd "${USERNAME}" | cut -d: -f6)"
+else
+  HOME_DIR="${UNMS_HOME_DIR:-"/home/${USERNAME}"}"
+fi
+
+# files and directoris
+export APP_DIR="${HOME_DIR}/app"
+export DATA_DIR="${HOME_DIR}/data"
+export RESTORE_DIR="${DATA_DIR}/unms-backups/restore"
+export CONFIG_DIR="${APP_DIR}/conf"
+export CONFIG_FILE="${APP_DIR}/unms.conf"
+export METADATA_FILE="${APP_DIR}/metadata"
+export DOCKER_COMPOSE_INSTALL_PATH="/usr/local/bin"
+export DOCKER_COMPOSE_FILENAME="docker-compose.yml"
+export DOCKER_COMPOSE_PATH="${APP_DIR}/${DOCKER_COMPOSE_FILENAME}"
+export DOCKER_COMPOSE_TEMPLATE_FILENAME="docker-compose.yml.template"
+export DOCKER_COMPOSE_TEMPLATE_PATH="${APP_DIR}/${DOCKER_COMPOSE_TEMPLATE_FILENAME}"
+
 if [ "${SCRIPT_DIR}" = "${APP_DIR}" ]; then
   echo >&2 "Please don't run the installation script in the application directory ${APP_DIR}"
   exit 1
 fi
 
-# parse arguments
-VERSION="latest"
-DEMO="false"
-NODE_ENV="production"
-USE_LOCAL_IMAGES="false"
-DOCKER_IMAGE="ubnt/unms"
-DOCKER_USERNAME=""
-DOCKER_PASSWORD=""
-HTTP_PORT="80"
-HTTPS_PORT="443"
-WS_PORT=""
-NETFLOW_PORT="2055"
-PROXY_HTTPS_PORT=""
-PROXY_WS_PORT=""
-SSL_CERT_DIR=""
-SSL_CERT=""
-SSL_CERT_KEY=""
-SSL_CERT_CA=""
-HOST_TAG=""
-UNATTENDED="false"
-NO_AUTO_UPDATE="false"
-NO_OVERCOMMIT_MEMORY="false"
-BRANCH="master"
-SUBNET=""
-CLUSTER_SIZE=auto
+# UNMS variables
+export UNMS_HTTP_PORT="8081"
+export UNMS_WS_PORT="8082"
+export UNMS_WS_SHELL_PORT="8083"
+export UNMS_WS_API_PORT="8084"
+export UNMS_POSTGRES_USER="unms"
+export UNMS_POSTGRES_DB="unms"
+export UNMS_POSTGRES_SCHEMA="unms"
+export UNMS_POSTGRES_PASSWORD="$(LC_CTYPE=C tr -dc "a-zA-Z0-9" < /dev/urandom | fold -w 48 | head -n 1 || true)"
+export UNMS_TOKEN="$(LC_CTYPE=C tr -dc "a-zA-Z0-9" < /dev/urandom | fold -w 48 | head -n 1 || true)"
+export UNMS_DEPLOYMENT=""
+export UNMS_VERSION="$(grep "^version=" "${SCRIPT_DIR}/metadata" | sed 's/version=//')"
+export UNMS_IP_WHITELIST=""
+export ALTERNATIVE_HTTP_PORT="8080"
+export ALTERNATIVE_HTTPS_PORT="8443"
+export ALTERNATIVE_SUSPEND_PORT="8081"
+export ALTERNATIVE_NETFLOW_PORT="2056"
+export SECURE_LINK_SECRET="$(LC_CTYPE=C tr -dc "a-zA-Z0-9" < /dev/urandom | fold -w 100 | head -n 1 || true)"
+
+# UCRM variables
+export UCRM_ENABLED="true"
+export UCRM_CONFIGURABLE="true"
+export UCRM_DOCKER_IMAGE="ubnt/unms-crm"
+export UCRM_VERSION="3.0.0-beta.4"
+export UCRM_POSTGRES_PASSWORD="$(LC_CTYPE=C tr -dc "a-zA-Z0-9" < /dev/urandom | fold -w 48 | head -n 1 || true)"
+export UCRM_SECRET="$(LC_CTYPE=C tr -dc "a-zA-Z0-9" < /dev/urandom | fold -w 48 | head -n 1 || true)"
+export UCRM_USER="${USERNAME}"
+export UCRM_POSTGRES_USER="ucrm"
+export UCRM_POSTGRES_DB="unms"
+export UCRM_POSTGRES_SCHEMA="ucrm"
+export UCRM_MAILER_ADDRESS="127.1.0.1"
+export UCRM_MAILER_USERNAME="username"
+export UCRM_MAILER_PASSWORD="password"
+export NODE_ENV="production"
+
+# other variables
+export HTTP_PORT="80"
+export HTTPS_PORT="443"
+export SUSPEND_PORT="81"
+export WS_PORT=""
+export PROXY_HTTPS_PORT=""
+export PROXY_WS_PORT=""
+export NETFLOW_PORT="2055"
+export VERSION="latest"
+export DEMO="false"
+export USE_LOCAL_IMAGES="false"
+export DOCKER_IMAGE="ubnt/unms"
+export DOCKER_REGISTRY="docker.io"
+export DOCKER_USERNAME=""
+export DOCKER_PASSWORD=""
+export SSL_CERT_DIR=""
+export SSL_CERT=""
+export SSL_CERT_KEY=""
+export SSL_CERT_CA=""
+export HOST_TAG=""
+export UNATTENDED="false"
+export UPDATING="false"
+export NO_AUTO_UPDATE="false"
+export NO_OVERCOMMIT_MEMORY="false"
+export BRANCH="master"
+export SUBNET=""
+export CLUSTER_SIZE="auto"
+export IPAM_PUBLIC=""
+export IPAM_PRIVATE=""
+export CERT_DIR_MAPPING_NGINX=""
+export USERCERT_DIR_MAPPING_NGINX=""
+export POSTGRES_USER="postgres"
+export POSTGRES_PASSWORD="$(LC_CTYPE=C tr -dc "a-zA-Z0-9" < /dev/urandom | fold -w 48 | head -n 1 || true)"
+export CURRENT_VERSION="$(cat "${METADATA_FILE}" 2>/dev/null | grep '^version=' | sed 's/version=//'|| true)"
+export DELETE_CRM_DATA="false"
+export ENV_DIR=
+export ENV_FILES_UNMS=
+export ENV_FILES_UCRM=
 
 fail() {
   echo -e "ERROR: $1" >&2
@@ -82,12 +121,12 @@ fail() {
 read_previous_config() {
   # read WS port settings from existing running container
   # they were not saved to config file in versions <=0.7.18
-  if ! oldEnv=$(docker inspect --format '{{ .Config.Env }}' unms); then
+  if ! oldEnv="$(docker inspect --format '{{ .Config.Env }}' unms)"; then
     echo "Couldn't read WS port config from existing UNMS container"
   else
-    WS_PORT=$(docker ps --filter "name=unms$" --filter "status=running" --format "{{.Ports}}" | sed -E "s/.*0.0.0.0:([0-9]+)->8444.*|.*/\1/")
+    WS_PORT="$(docker ps --filter "name=unms$" --filter "status=running" --format "{{.Ports}}" | sed -E "s/.*0.0.0.0:([0-9]+)->8444.*|.*/\1/")"
     echo "Setting WS_PORT=${WS_PORT}"
-    PROXY_WS_PORT=$(echo "${oldEnv}" | sed -E "s/.*[ []PUBLIC_WS_PORT=([0-9]*).*|.*/\1/")
+    PROXY_WS_PORT="$(echo "${oldEnv}" | sed -E "s/.*[ []PUBLIC_WS_PORT=([0-9]*).*|.*/\1/")"
     echo "Setting PROXY_WS_PORT=${PROXY_WS_PORT}"
   fi
 
@@ -102,144 +141,190 @@ read_previous_config() {
   else
     echo "Configuration file not found."
   fi
+  UCRM_POSTGRES_DB="${UNMS_POSTGRES_DB}"
 }
 
-while [[ $# -gt 0 ]]
-do
-key="$1"
-
-case $key in
-  --demo)
-    echo "Setting DEMO=true"
-    DEMO="true"
-    ;;
-  --update)
-    echo "Restoring previous configuration"
-    read_previous_config
-    ;;
-  --unattended)
-    echo "Setting UNATTENDED=true"
-    UNATTENDED="true"
-    ;;
-  --no-auto-update)
-    echo "Setting NO_AUTO_UPDATE=true"
-    NO_AUTO_UPDATE="true"
-    ;;
-  --no-overcommit-memory)
-    echo "Setting NO_OVERCOMMIT_MEMORY=true"
-    NO_OVERCOMMIT_MEMORY="true"
-    ;;
-  --use-local-images)
-    echo "Setting USE_LOCAL_IMAGES=true"
-    USE_LOCAL_IMAGES="true"
-    ;;
-  -v|--version)
-    echo "Setting VERSION=$2"
-    VERSION="$2"
-    shift # past argument value
-    ;;
-  --docker-image)
-    echo "Setting DOCKER_IMAGE=$2"
-    DOCKER_IMAGE="$2"
-    shift # past argument value
-    ;;
-  --docker-username)
-    echo "Setting DOCKER_USERNAME=$2"
-    DOCKER_USERNAME="$2"
-    shift # past argument value
-    ;;
-  --docker-password)
-    echo "Setting DOCKER_PASSWORD=*****"
-    DOCKER_PASSWORD="$2"
-    shift # past argument value
-    ;;
-  --data-dir)
-    echo "Setting DATA_DIR=$2"
-    DATA_DIR="$2"
-    shift # past argument value
-    ;;
-  --http-port)
-    echo "Setting HTTP_PORT=$2"
-    HTTP_PORT="$2"
-    shift # past argument value
-    ;;
-  --https-port)
-    echo "Setting HTTPS_PORT=$2"
-    HTTPS_PORT="$2"
-    shift # past argument value
-    ;;
-  --ws-port)
-    echo "Setting WS_PORT=$2"
-    WS_PORT="$2"
-    shift # past argument value
-    ;;
-  --public-https-port)
-    echo "Setting PROXY_HTTPS_PORT=$2"
-    PROXY_HTTPS_PORT="$2"
-    shift # past argument value
-    ;;
-  --public-ws-port)
-    echo "Setting PROXY_WS_PORT=$2"
-    PROXY_WS_PORT="$2"
-    shift # past argument value
-    ;;
-  --netflow-port)
-    echo "Setting NETFLOW_PORT=$2"
-    NETFLOW_PORT="$2"
-    shift # past argument value
-    ;;
-  --ssl-cert-dir)
-    echo "Setting SSL_CERT_DIR=$2"
-    SSL_CERT_DIR="$2"
-    shift # past argument value
-    ;;
-  --ssl-cert)
-    echo "Setting SSL_CERT=$2"
-    SSL_CERT="$2"
-    shift # past argument value
-    ;;
-  --ssl-cert-key)
-    echo "Setting SSL_CERT_KEY=$2"
-    SSL_CERT_KEY="$2"
-    shift # past argument value
-    ;;
-  --ssl-cert-ca)
-    echo "Setting SSL_CERT_CA=$2"
-    SSL_CERT_CA="$2"
-    shift # past argument value
-    ;;
-  --host-tag)
-    echo "Setting HOST_TAG=$2"
-    HOST_TAG="$2"
-    shift # past argument value
-    ;;
-  --branch)
-    echo "Setting BRANCH=$2"
-    BRANCH="$2"
-    shift # past argument value
-    ;;
-  --subnet)
-    echo "Setting SUBNET=$2"
-    SUBNET="$2"
-    shift # past argument value
-    ;;
-  --node-env)
-    echo "Setting NODE_ENV=$2"
-    NODE_ENV="$2"
-    shift # past argument value
-    ;;
-  --workers)
-    echo "Setting CLUSTER_SIZE=$2"
-    [[ "${2}" =~ ^[1-8]$ ]] || [[ "${2}" = "auto" ]] || fail "--workers argument must be a number in range 1-8 or 'auto'."
-    CLUSTER_SIZE="$2"
-    ;;
-
-  *)
-    # unknown option
-    ;;
-esac
-shift # past argument key
+# parse arguments
+while [[ "$#" -gt 0 ]]; do
+  case "$1" in
+    --demo)
+      echo "Setting DEMO=true"
+      DEMO="true"
+      ;;
+    --update)
+      echo "Restoring previous configuration"
+      read_previous_config
+      UPDATING="true"
+      ;;
+    --unattended)
+      echo "Setting UNATTENDED=true"
+      UNATTENDED="true"
+      ;;
+    --no-auto-update)
+      echo "Setting NO_AUTO_UPDATE=true"
+      NO_AUTO_UPDATE="true"
+      ;;
+    --no-overcommit-memory)
+      echo "Setting NO_OVERCOMMIT_MEMORY=true"
+      NO_OVERCOMMIT_MEMORY="true"
+      ;;
+    --enable-ucrm)
+      echo "Setting UCRM_ENABLED=true"
+      UCRM_ENABLED="true"
+      ;;
+    --ucrm-configurable)
+      echo "Setting UCRM_CONFIGURABLE=true"
+      UCRM_CONFIGURABLE="true"
+      ;;
+    --ucrm-version)
+      echo "Setting UCRM_VERSION=$2"
+      UCRM_VERSION="$2"
+      ;;
+    --ucrm-docker-image)
+      echo "Setting UCRM_DOCKER_IMAGE=$2"
+      UCRM_DOCKER_IMAGE="$2"
+      shift # past argument value
+      ;;
+    --use-local-images)
+      echo "Setting USE_LOCAL_IMAGES=true"
+      USE_LOCAL_IMAGES="true"
+      ;;
+    -v|--version)
+      echo "Setting VERSION=$2"
+      VERSION="$2"
+      shift # past argument value
+      ;;
+    --docker-image)
+      echo "Setting DOCKER_IMAGE=$2"
+      DOCKER_IMAGE="$2"
+      shift # past argument value
+      ;;
+    --docker-registry)
+      echo "Setting DOCKER_REGISTRY=$2"
+      DOCKER_REGISTRY="$2"
+      shift # past argument value
+      ;;
+    --docker-username)
+      echo "Setting DOCKER_USERNAME=$2"
+      DOCKER_USERNAME="$2"
+      shift # past argument value
+      ;;
+    --docker-password)
+      echo "Setting DOCKER_PASSWORD=*****"
+      DOCKER_PASSWORD="$2"
+      shift # past argument value
+      ;;
+    --data-dir)
+      echo "Setting DATA_DIR=$2"
+      DATA_DIR="$2"
+      shift # past argument value
+      ;;
+    --http-port)
+      echo "Setting HTTP_PORT=$2"
+      HTTP_PORT="$2"
+      shift # past argument value
+      ;;
+    --https-port)
+      echo "Setting HTTPS_PORT=$2"
+      HTTPS_PORT="$2"
+      shift # past argument value
+      ;;
+    --suspend-port)
+      echo "Setting SUSPEND_PORT=$2"
+      SUSPEND_PORT="$2"
+      shift # past argument value
+      ;;
+    --ws-port)
+      echo "Setting WS_PORT=$2"
+      WS_PORT="$2"
+      shift # past argument value
+      ;;
+    --public-https-port)
+      echo "Setting PROXY_HTTPS_PORT=$2"
+      PROXY_HTTPS_PORT="$2"
+      shift # past argument value
+      ;;
+    --public-ws-port)
+      echo "Setting PROXY_WS_PORT=$2"
+      PROXY_WS_PORT="$2"
+      shift # past argument value
+      ;;
+    --netflow-port)
+      echo "Setting NETFLOW_PORT=$2"
+      NETFLOW_PORT="$2"
+      shift # past argument value
+      ;;
+    --ssl-cert-dir)
+      echo "Setting SSL_CERT_DIR=$2"
+      SSL_CERT_DIR="$2"
+      shift # past argument value
+      ;;
+    --ssl-cert)
+      echo "Setting SSL_CERT=$2"
+      SSL_CERT="$2"
+      shift # past argument value
+      ;;
+    --ssl-cert-key)
+      echo "Setting SSL_CERT_KEY=$2"
+      SSL_CERT_KEY="$2"
+      shift # past argument value
+      ;;
+    --ssl-cert-ca)
+      echo "Setting SSL_CERT_CA=$2"
+      SSL_CERT_CA="$2"
+      shift # past argument value
+      ;;
+    --host-tag)
+      echo "Setting HOST_TAG=$2"
+      HOST_TAG="$2"
+      shift # past argument value
+      ;;
+    --branch)
+      echo "Setting BRANCH=$2"
+      BRANCH="$2"
+      shift # past argument value
+      ;;
+    --subnet)
+      echo "Setting SUBNET=$2"
+      SUBNET="$2"
+      shift # past argument value
+      ;;
+    --node-env)
+      echo "Setting NODE_ENV=$2"
+      NODE_ENV="$2"
+      shift # past argument value
+      ;;
+    --workers)
+      echo "Setting CLUSTER_SIZE=$2"
+      [[ "${2}" =~ ^[1-8]$ ]] || [[ "${2}" = "auto" ]] || fail "--workers argument must be a number in range 1-8 or 'auto'."
+      CLUSTER_SIZE="$2"
+      shift # past argument value
+      ;;
+    --deployment)
+      echo "Setting UNMS_DEPLOYMENT=$2"
+      UNMS_DEPLOYMENT=$2
+      shift # past argument value
+      ;;
+    --ip-whitelist)
+      echo "Setting UNMS_IP_WHITELIST=$2"
+      UNMS_IP_WHITELIST=$2
+      shift # past argument value
+      ;;
+    --env-dir)
+      echo "Setting ENV_DIR=$2"
+      ENV_DIR=$2
+      shift # past argument value
+      ;;
+    *)
+      # unknown option
+      ;;
+  esac
+  shift # past argument key
 done
+
+# '+' symbol is not allowed in docker tags, replace with '-'
+export DOCKER_TAG=${VERSION//+/-}
+export UCRM_DOCKER_TAG=${UCRM_VERSION//+/-}
 
 # check that none or all three SSL variables are set
 if [ ! -z "${SSL_CERT_DIR}" ] || [ ! -z "${SSL_CERT}" ] || [ ! -z "${SSL_CERT_KEY}" ]; then
@@ -249,8 +334,6 @@ if [ ! -z "${SSL_CERT_DIR}" ] || [ ! -z "${SSL_CERT}" ] || [ ! -z "${SSL_CERT_KE
 fi
 
 # check subnet and prepare the networks section of docker compose file
-IPAM_PUBLIC=""
-IPAM_PRIVATE=""
 if [ ! -z "${SUBNET}" ]; then
   cidrRegex="^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$"
 
@@ -299,38 +382,17 @@ if [ ! -z "${SUBNET}" ]; then
   IPAM_PRIVATE=$(printf "ipam:\n      config:\n        - subnet: \"${privateSubnetIp}/${newSubnetPrefix}\"")
 fi
 
+if [ ! -z "${ENV_DIR}" ]; then
+  # prepare env_file sections of the docker compose file
+  [ -f ${ENV_DIR}/unms.env ] && ENV_FILES_UNMS=$(printf "env_file:\n      - ${ENV_DIR}/unms.env")
+  [ -f ${ENV_DIR}/ucrm.env ] && ENV_FILES_UCRM=$(printf "env_file:\n      - ${ENV_DIR}/ucrm.env")
+fi
+
 # prepare --silent option for curl
 curlSilent=""
 if [ "${UNATTENDED}" = "true" ]; then
   curlSilent="--silent"
 fi
-
-
-export COMPOSE_PROJECT_NAME
-export VERSION
-export DEMO
-export NODE_ENV
-export DOCKER_IMAGE
-export DATA_DIR
-export CONFIG_DIR
-export HTTP_PORT
-export HTTPS_PORT
-export WS_PORT
-export WS_SHELL_PORT
-export NETFLOW_PORT
-export SSL_CERT
-export SSL_CERT_KEY
-export SSL_CERT_CA
-export HOST_TAG
-export BRANCH
-export UNMS_HTTP_PORT
-export UNMS_WS_PORT
-export UNMS_WS_SHELL_PORT
-export UNMS_WS_API_PORT
-export SECURE_LINK_SECRET
-export IPAM_PUBLIC
-export IPAM_PRIVATE
-export CLUSTER_SIZE
 
 is_decimal_number() {
   [[ ${1} =~ ^[0-9]+$ ]]
@@ -349,6 +411,10 @@ version_equal_or_newer() {
     if ((10#${ver1[i]} < 10#${ver2[i]})); then return 1; fi
   done
   return 0;
+}
+
+version_older() {
+  ! version_equal_or_newer "$1" "$2"
 }
 
 # usage: confirm <question>
@@ -509,6 +575,22 @@ check_system() {
   fi
 }
 
+check_update_allowed() {
+  if [ -z "${CURRENT_VERSION}" ]; then
+    return 0
+  fi
+
+  if echo "${CURRENT_VERSION}" | grep -q '^1.0.0-dev' && echo "${VERSION}" | grep -vq '^1.0.0-dev'; then
+    if [ "$UNATTENDED" = true ]; then
+      fail "Unattended update from version 1.0.0-dev to a non-dev version is not allowed."
+    fi
+
+    echo "Updating from CRM testing version. All CRM data will be deleted."
+    confirm "Would you like to continue with the installation?" || exit 1
+    export DELETE_CRM_DATA="true"
+  fi
+}
+
 check_custom_cert_path() {
   if [ -z "${SSL_CERT_DIR}" ]; then
     # Not using custom cert.
@@ -539,6 +621,24 @@ check_custom_cert_path() {
   [[ "${norm_key_path}" = "${norm_cert_dir}"* ]] || fail "Key file:\n${norm_key_path}\n is not placed in the cert directory:\n${norm_cert_dir}\nCheck --ssl-cert-dir and --ssl-cert-key arguments for symbolic links. The actual ssl key file (not just symbolic link) must be within the ssl cert directory or its subdirectories."
 }
 
+check_free_space() {
+  dockerRootDir="$(docker info --format='{{ print .DockerRootDir }}')"
+  freeSpace="$(df -m "${dockerRootDir}" | tail -1 | awk '{print $4}')"
+  local minRequiredSpace=3000 # MB
+  if [ "${USE_LOCAL_IMAGES}" = "true" ]; then
+    minRequiredSpace=500 # MB
+  fi
+  if [[ "${freeSpace}" -lt "${minRequiredSpace}" ]]; then
+    echo >&2 "There is not enough disk space available to safely install UNMS. At least ${minRequiredSpace} MB is required."
+    echo >&2 "You have ${freeSpace} MB of available disk space in ${dockerRootDir}"
+    echo >&2 -e "\n----------------\n"
+    echo >&2 "We recommend running \"docker system prune\" once in a while to clean unused containers, images, etc."
+    echo >&2 "You can determine how much space can be cleaned up by running \"docker system df\""
+
+    exit 1
+  fi
+}
+
 install_docker() {
   if ! which docker > /dev/null 2>&1; then
     echo "Download and install Docker"
@@ -554,8 +654,8 @@ install_docker() {
 
   DOCKER_VERSION=$(docker -v | sed 's/.*version \([0-9.]*\).*/\1/');
   echo "Docker version: ${DOCKER_VERSION}"
-  if ! version_equal_or_newer "${DOCKER_VERSION}" "1.12.4" ; then
-    echo "Docker version ${DOCKER_VERSION} is not supported. Please upgrade to version 1.12.4 or newer."
+  if ! version_equal_or_newer "${DOCKER_VERSION}" "1.13.1" ; then
+    echo "Docker version ${DOCKER_VERSION} is not supported. Please upgrade to version 1.13.1 or newer."
     exit 1;
   fi
 
@@ -570,6 +670,8 @@ install_docker_compose() {
     echo "Download and install Docker compose."
     curl -sL "https://github.com/docker/compose/releases/download/1.9.0/docker-compose-$(uname -s)-$(uname -m)" > ${DOCKER_COMPOSE_INSTALL_PATH}/docker-compose
     chmod +x ${DOCKER_COMPOSE_INSTALL_PATH}/docker-compose
+  elif realpath "$(which docker-compose)" | grep snap > /dev/null 2>&1; then
+    fail "It appears that docker-compose was installed using snap package manager. UNMS does not work with this version of docker-compose. Please uninstall docker-compose and then re-run the installation script."
   fi
 
   if ! which docker-compose > /dev/null 2>&1; then
@@ -635,14 +737,17 @@ set_overcommit_memory() {
 create_user() {
   if [ -z "$(getent passwd ${USERNAME})" ]; then
     echo "Creating user ${USERNAME}, home dir '${HOME_DIR}'."
-    if ! useradd -m -d "${HOME_DIR}" -G docker "${USERNAME}"; then
-      echo >&2 "Failed to create user '${USERNAME}'"
-      exit 1
+    if [ -z "$(getent group ${USERNAME})" ]; then
+      useradd -m -d "${HOME_DIR}" -G docker "${USERNAME}" || fail "Failed to create user '${USERNAME}'"
+    else
+      useradd -m -d "${HOME_DIR}" -g "${USERNAME}" -G docker "${USERNAME}" || fail "Failed to create user '${USERNAME}'"
     fi
-  else
+  elif ! getent group docker | grep -q "\b${USERNAME}\b" \
+      || ! [ -d "${HOME_DIR}" ] \
+      || [ "$(stat --format '%u' "${HOME_DIR}")" != "$(id -u "${USERNAME}")" ]; then
     echo >&2 "WARNING: User '${USERNAME}' already exists. We are going to ensure that the"
     echo >&2 "user is in the 'docker' group and that its home '${HOME_DIR}' dir exists and"
-    echo >&2 "is writeable by the user."
+    echo >&2 "is owned by the user."
     if ! [ "$UNATTENDED" = true ]; then
       confirm "Would you like to continue with the installation?" || exit 1
     fi
@@ -664,7 +769,10 @@ create_user() {
     fi
   fi
 
-  chown "${USERNAME}" "${HOME_DIR}"
+  if [ "$(stat --format '%u' "${HOME_DIR}")" != "$(id -u "${USERNAME}")" ]; then
+    chown "${USERNAME}" "${HOME_DIR}"
+  fi
+
   export USER_ID=$(id -u "${USERNAME}")
 }
 
@@ -713,6 +821,150 @@ fix_080_permission_issue() {
   fi
 }
 
+start_postgres() {
+  echo "Starting postgres DB."
+  docker-compose -p unms -f "${DOCKER_COMPOSE_PATH}" up --no-deps -d postgres >/dev/null || fail "Failed to start Postgres DB."
+  for delay in 1 2 2 5 10 10 0; do
+    test "${delay}" != "0" || fail "Postgres DB failed to start in time."
+    if docker-compose -p unms -f "${DOCKER_COMPOSE_PATH}" exec -T postgres pg_isready 2>&1 >/dev/null; then
+      break
+    fi
+    sleep "${delay}"
+  done
+}
+
+stop_postgres() {
+  docker-compose -p unms -f "${DOCKER_COMPOSE_PATH}" down || fail "Failed to stop Postgres DB."
+}
+
+exec_pg_dump() {
+  docker-compose -p unms -f "${DOCKER_COMPOSE_PATH}" exec -T postgres pg_dump --username postgres --no-password "$@"
+}
+
+exec_psql() {
+  docker-compose -p unms -f "${DOCKER_COMPOSE_PATH}" exec -T postgres psql --username postgres --no-password --no-align --tuples-only --quiet --dbname "${UNMS_POSTGRES_DB}" "$@"
+}
+
+exec_psql_command() {
+  exec_psql --command "${1}"
+}
+
+fix_postgres() {
+  test -d "${DATA_DIR}/postgres" || return 0 # do nothing during first installation
+
+  local isReinstall="$( [ "${UPDATING}" = "false" ] && echo "true" || echo "false")"
+  local isPreUcrmVersion="$( ( [ -z "${CURRENT_VERSION}" ] \
+    || version_older "${CURRENT_VERSION}" "0.13.99") > /dev/null && echo "true" || echo "false")"
+  local isEarlyUcrmVersion="$( ( [ -z "${CURRENT_VERSION}" ] \
+    || echo "${CURRENT_VERSION}" | grep --quiet '^0.14.0-dev.1' \
+    || echo "${CURRENT_VERSION}" | grep --quiet '^0.14.0-alpha.1' \
+    || echo "${CURRENT_VERSION}" | grep --quiet '^1.0.0-dev') > /dev/null && echo "true" || echo "false")"
+
+  if [ "${isReinstall}" = "false" ] \
+    && [ "${isPreUcrmVersion}" = "false" ] \
+    && [ "${isEarlyUcrmVersion}" = "false" ];
+  then
+    echo "No need to fix postgres."
+    return 0
+  fi
+
+  start_postgres
+
+  if [ "${isPreUcrmVersion}" = "true" ]; then
+    # Previous versions of UNMS used 'postgres' user without password. New versions will use 'unms' user with password
+    # and the 'postgres' user will be password protected.
+    # Update passwords.
+    echo "Setting password for Postgres DB."
+    exec_psql_command "ALTER USER ${POSTGRES_USER} WITH PASSWORD '${POSTGRES_PASSWORD}'" > /dev/null || fail "Failed to set password for user '${POSTGRES_USER}'."
+    echo "Creating DB user ${UNMS_POSTGRES_USER}."
+    exec_psql_command "CREATE USER ${UNMS_POSTGRES_USER} SUPERUSER PASSWORD '${UNMS_POSTGRES_PASSWORD}'" > /dev/null || fail "Failed to create DB user '${UNMS_POSTGRES_USER}'."
+    exec_psql_command "GRANT ALL PRIVILEGES ON DATABASE ${UNMS_POSTGRES_DB} TO ${UNMS_POSTGRES_USER}" > /dev/null  || fail "Failed to grant privileges on DB '${UNMS_POSTGRES_DB}' to user '${UNMS_POSTGRES_USER}'."
+    echo "Creating DB user ${UCRM_POSTGRES_USER}."
+    exec_psql_command "CREATE USER ${UCRM_POSTGRES_USER} SUPERUSER PASSWORD '${UCRM_POSTGRES_PASSWORD}'" > /dev/null || fail "Failed to create DB user '${UCRM_POSTGRES_USER}'."
+    exec_psql_command "GRANT ALL PRIVILEGES ON DATABASE ${UCRM_POSTGRES_DB} TO ${UCRM_POSTGRES_USER}" > /dev/null  || fail "Failed to grant privileges on DB '${UCRM_POSTGRES_DB}' to user '${UCRM_POSTGRES_USER}'."
+    # Disallow remote connections without password.
+    echo "Disallowing Postgres DB connection without password."
+    docker-compose -p unms -f "${DOCKER_COMPOSE_PATH}" exec -T postgres \
+      sed -i -- 's/host[[:space:]]*all[[:space:]]*all[[:space:]]*all[[:space:]]*trust/host all all all md5/' "/var/lib/postgresql/data/pgdata/pg_hba.conf" || fail "Failed to restrict access to Postgres DB."
+  elif [ "${isReinstall}" = "true" ]; then
+    # Doing reinstall without --update flag. New passwords have been generated, apply them to the DB.
+    echo "Updating Postgres DB passwords."
+    exec_psql_command "ALTER USER ${POSTGRES_USER} WITH PASSWORD '${POSTGRES_PASSWORD}'" > /dev/null || fail "Failed to update password for user '${POSTGRES_USER}'."
+    exec_psql_command "ALTER USER ${UNMS_POSTGRES_USER} WITH PASSWORD '${UNMS_POSTGRES_PASSWORD}'" > /dev/null || fail "Failed to update password for user '${UNMS_POSTGRES_USER}'."
+    exec_psql_command "ALTER USER ${UCRM_POSTGRES_USER} WITH PASSWORD '${UCRM_POSTGRES_PASSWORD}'" > /dev/null || fail "Failed to update password for user '${UCRM_POSTGRES_PASSWORD}'."
+    echo "Disallowing Postgres DB connection without password."
+    docker-compose -p unms -f "${DOCKER_COMPOSE_PATH}" exec -T postgres \
+      sed -i -- 's/host[[:space:]]*all[[:space:]]*all[[:space:]]*all[[:space:]]*trust/host all all all md5/' "/var/lib/postgresql/data/pgdata/pg_hba.conf" || true
+  fi
+
+  if [ "${isPreUcrmVersion}" = "true" ] || [ "${isEarlyUcrmVersion}" = "true" ]; then
+    # Move unms tables from public schema to unms schema
+    echo "Checking exitence of unms schema."
+    if ! exec_psql_command "\dn" | cut -d \| -f 1 | grep -qw unms; then
+      echo "Changing Postgres DB schemas."
+      exec_psql_command "ALTER SCHEMA public RENAME TO ${UNMS_POSTGRES_SCHEMA}" > /dev/null || fail "Failed to rename public schema to '${UNMS_POSTGRES_SCHEMA}'."
+      exec_psql_command "CREATE SCHEMA IF NOT EXISTS public" > /dev/null || fail "Failed to create DB schema 'public'."
+      exec_psql_command "CREATE SCHEMA IF NOT EXISTS ${UCRM_POSTGRES_SCHEMA}" > /dev/null || fail "Failed to create DB schema '${UCRM_POSTGRES_SCHEMA}'."
+      exec_psql_command "ALTER USER ${UNMS_POSTGRES_USER} SET search_path = ${UNMS_POSTGRES_SCHEMA},public" > /dev/null  || fail "Failed to set search path for DB user '${UNMS_POSTGRES_USER},public'."
+      exec_psql_command "ALTER USER ${UCRM_POSTGRES_USER} SET search_path = ${UCRM_POSTGRES_SCHEMA},public" > /dev/null  || fail "Failed to set search path for DB user '${UCRM_POSTGRES_USER},public'."
+      exec_psql_command "ALTER SCHEMA ${UNMS_POSTGRES_SCHEMA} OWNER TO ${UNMS_POSTGRES_USER}" > /dev/null || fail "Failed to set ownership of schema '${UNMS_POSTGRES_SCHEMA}' to user '${UNMS_POSTGRES_USER}'."
+      exec_psql_command "ALTER SCHEMA ${UCRM_POSTGRES_SCHEMA} OWNER TO ${UCRM_POSTGRES_USER}" > /dev/null || fail "Failed to set ownership of schema '${UCRM_POSTGRES_SCHEMA}' to user '${UCRM_POSTGRES_USER}'."
+      extensions="$(exec_psql_command "SELECT extname FROM pg_extension WHERE extname != 'plpgsql'")"
+      for extension in ${extensions}; do
+        exec_psql_command "ALTER EXTENSION \"${extension}\" SET SCHEMA public" || fail "Failed to move extension '${extension}' to schema 'public'."
+      done
+    else
+      echo "Schemas are already changed."
+    fi
+  fi
+
+  if [ "${isEarlyUcrmVersion}" = "true" ]; then
+    # Early versions 0.14.0 and 1.0.0-dev contained separate UCRM database.
+    echo "Checking separate ucrm database."
+    if exec_psql -lqt | cut -d \| -f 1 | grep --quiet "^ucrm[[:space:]]*$"; then
+      echo "Migrating UCRM database."
+      # ucrm database exists, migrate its content to ucrm namespace in the unms database
+      exec_psql_command "DROP SCHEMA ${UCRM_POSTGRES_SCHEMA} CASCADE" || fail "Failed to drop DB schema '${UCRM_POSTGRES_SCHEMA}'."
+      exec_pg_dump ucrm > "${DATA_DIR}/postgres/ucrm.sql" || fail "Failed to dump 'ucrm' database."
+      exec_psql -f "/var/lib/postgresql/data/pgdata/ucrm.sql" > /dev/null || fail "Failed to restore 'ucrm' database."
+      rm "${DATA_DIR}/postgres/ucrm.sql"
+      exec_psql_command "ALTER SCHEMA public RENAME TO ${UCRM_POSTGRES_SCHEMA}" || echo "Failed to rename public schema to '${UCRM_POSTGRES_SCHEMA}'."
+      exec_psql_command "ALTER SCHEMA ${UCRM_POSTGRES_SCHEMA} OWNER TO ${UCRM_POSTGRES_USER}" > /dev/null || fail "Failed to set ownership of schema '${UCRM_POSTGRES_SCHEMA}' to user '${UCRM_POSTGRES_USER}'."
+      exec_psql_command "CREATE SCHEMA IF NOT EXISTS public" > /dev/null || fail "Failed to create DB schema 'public'."
+      extensions="$(exec_psql_command "SELECT extname FROM pg_extension WHERE extname != 'plpgsql'")"
+      for extension in ${extensions}; do
+        exec_psql_command "ALTER EXTENSION \"${extension}\" SET SCHEMA public" > /dev/null || fail "Failed to move extension '${extension}' to schema 'public'."
+      done
+      exec_psql_command "DROP database ucrm" > /dev/null || fail "Failed to drop database 'ucrm'."
+    else
+      echo "The 'ucrm' database has already been migrated."
+    fi
+  fi
+
+  stop_postgres
+}
+
+remove_crm_testing_data() {
+  if [ "${DELETE_CRM_DATA}" != "true" ]; then
+    return 0;
+  fi
+
+  start_postgres
+
+  echo "Dropping DB 'ucrm'."
+  exec_psql_command "DROP DATABASE ucrm" > /dev/null || echo "Failed to drop DB 'ucrm'."
+  echo "Dropping schema 'ucrm'."
+  exec_psql_command "DROP SCHEMA ucrm CASCADE" > /dev/null || echo "Failed to drop DB schema 'ucrm'."
+  echo "Creating DB schema '${UCRM_POSTGRES_SCHEMA}'."
+  exec_psql_command "CREATE SCHEMA IF NOT EXISTS ${UCRM_POSTGRES_SCHEMA} AUTHORIZATION ${UCRM_POSTGRES_USER}" > /dev/null || fail "Failed to create DB schema '${UCRM_POSTGRES_SCHEMA}'."
+
+  stop_postgres
+
+  local ucrmDir="${DATA_DIR}/ucrm"
+  echo "Removing UCRM directory '${ucrmDir}'"
+  rm -rf "${ucrmDir}" || fail "Failed to clear ucrm directory '${ucrmDir}'."
+}
+
 remove_old_restore_files() {
   # Make sure that restore dir does not exist. We are now applying any backup in this directory during start
   # of UNMS container. Under normal circumstances this directory should be empty or not exist at all.
@@ -729,28 +981,11 @@ migrate_app_files() {
   mkdir -p -m 700 "${APP_DIR}"
 
   if [ -f "${oldConfigFile}" ]; then mv -u "${oldConfigFile}" "${CONFIG_FILE}"; fi
-  if [ -f "${oldDockerComposeFile}" ]; then mv -u "${oldDockerComposeFile}" "${DOCKER_COMPOSE_FILE}"; fi
-  if [ -f "${oldDockerComposeTemplate}" ]; then mv -u "${oldDockerComposeTemplate}" "${DOCKER_COMPOSE_TEMPLATE}"; fi
+  if [ -f "${oldDockerComposeFile}" ]; then mv -u "${oldDockerComposeFile}" "${DOCKER_COMPOSE_PATH}"; fi
+  if [ -f "${oldDockerComposeTemplate}" ]; then mv -u "${oldDockerComposeTemplate}" "${DOCKER_COMPOSE_TEMPLATE_PATH}"; fi
   if [ -d "${oldConfigDir}" ]; then rm -rf "${oldConfigDir}"; fi
 
   chown -R "${USERNAME}" "${APP_DIR}" || true
-}
-
-prepare_templates() {
-  echo "Preparing templates"
-  cd "${SCRIPT_DIR}"
-
-  # set home dir in update.sh
-  if ! sed -i -- "s|##HOMEDIR##|${HOME_DIR}|g" update.sh; then
-    echo >&2 "Failed update home dir in update.sh"
-    exit 1
-  fi
-
-  # set branch name in update.sh
-  if ! sed -i -- "s|##BRANCH##|${BRANCH}|g" update.sh; then
-    echo >&2 "Failed update branch name in update.sh"
-    exit 1
-  fi
 }
 
 determine_public_ports() {
@@ -794,85 +1029,92 @@ determine_public_ports() {
 
 create_docker_compose_file() {
   echo "Creating docker-compose.yml"
-  cd "${SCRIPT_DIR}"
-  if ! envsubst < "${DOCKER_COMPOSE_TEMPLATE_FILENAME}" > "${DOCKER_COMPOSE_FILENAME}"; then
-    echo >&2 "Failed to create docker-compose.yml"
-    exit 1
-  fi
+  envsubst < "${SCRIPT_DIR}/${DOCKER_COMPOSE_TEMPLATE_FILENAME}" > "${SCRIPT_DIR}/${DOCKER_COMPOSE_FILENAME}" || fail "Failed to create docker-compose.yml"
 }
 
 login_to_dockerhub() {
   if [[ ${DOCKER_USERNAME} ]]; then
     echo "Logging in to Docker Hub as ${DOCKER_USERNAME}"
-    docker login -u="${DOCKER_USERNAME}" -p="${DOCKER_PASSWORD}"
+    docker login -u="${DOCKER_USERNAME}" -p="${DOCKER_PASSWORD}" "${DOCKER_REGISTRY}"
   fi
 }
 
 pull_docker_images() {
-  if [ ${USE_LOCAL_IMAGES} = true ]; then
+  if [ "${USE_LOCAL_IMAGES}" = "true" ]; then
     echo "Will try to use local Docker images."
     return 0
   fi
 
   echo "Pulling docker images."
-  cd "${SCRIPT_DIR}"
-
-  if [ -f "${DOCKER_COMPOSE_FILENAME}" ]; then
-    if ! docker-compose pull; then
-      echo >&2 "Failed to pull docker images"
-      exit 1
-    fi
+  local newDockerComposeFile="${SCRIPT_DIR}/${DOCKER_COMPOSE_FILENAME}"
+  if [ -f "${newDockerComposeFile}" ]; then
+    docker-compose -p unms -f "${newDockerComposeFile}" pull || fail "Failed to pull docker images"
   fi
 
   docker pull ubnt/ucrm-conntrack || fail "Failed to pull ubnt/ucrm-conntrack image"
 }
 
-build_docker_images() {
-  echo "Building docker images."
-  cd "${SCRIPT_DIR}"
-
-  if [ -f "${DOCKER_COMPOSE_FILENAME}" ]; then
-    if ! docker-compose build; then
-      echo "Failed to build docker images"
-      exit 1
+stop_docker_containers() {
+  if [ -f "${DOCKER_COMPOSE_PATH}" ] && [ -n "$(docker-compose -p unms -f "${DOCKER_COMPOSE_PATH}" ps -q)" ]; then
+    echo "Stopping docker containers."
+    docker-compose -p unms -f "${DOCKER_COMPOSE_PATH}" down && RC=$? || RC=$?
+    if [ "${RC}" -gt 0 ]; then
+      # Failed to stop UNMS. Try to restart it before exitting.
+      "${APP_DIR}/unms-cli" start || true
+      fail "Failed to stop docker containers. This usually happens due to problem in docker service. Try restarting docker
+service with 'sudo systemctl restart docker' and then retry the installation."
     fi
   fi
 }
 
-stop_docker_containers() {
-  if [ -f "${DOCKER_COMPOSE_FILE}" ]; then
-    echo "Stopping docker containers."
-    cd "${APP_DIR}"
-    if ! docker-compose down; then
-      echo >&2 "Failed to stop docker containers"
-      exit 1
-    fi
-  fi
+check_raw_sockets() {
+  # Try to create ping session. If it fails the docker is running without 'setcap cap_net_raw' support.
+  docker run --rm --entrypoint /usr/sbin/setcap "${DOCKER_IMAGE}:${DOCKER_TAG}" \
+    cap_net_raw=pe /usr/local/bin/node 2>/dev/null \
+    || fail "This Docker installation does not support setting file capabilities using 'setcap' command.
+This happens usually due to lack of support from Docker's storage driver.
+Please check the storage driver used by Docker by running 'docker info | grep \"Storage Driver\"'. It should be
+set to overlay2 or similar filesystem with support for extended file attributes.
+To change Docker's storage driver to overlay2 first check that the kernel supports it by running \"modprobe -a overlay\".
+If overlay2 is supported edit /etc/docker/daemon.json and add { \"storage-driver\": \"overlay2\" }.
+Restart Docker service with 'sudo systemctl restart docker' and run this installation script again."
+  echo "File capabilities are supported."
 }
 
 try_to_bind_port() {
   local port="${1}"
   local protocol="${2}" # tcp or udp
   # Try to create docker container that bounds given port.
-  docker run --rm -p "${port}:${port}/${protocol}" --entrypoint /bin/echo "${DOCKER_IMAGE}:${VERSION}" "Port ${port}/${protocol} is free." 2>/dev/null
+  docker run --rm -p "${port}:${port}/${protocol}" --entrypoint /bin/echo "${DOCKER_IMAGE}:${DOCKER_TAG}" "Port ${port}/${protocol} is free." 2>/dev/null
 }
 
 check_free_ports() {
   echo "Checking available ports"
   while ! try_to_bind_port "${HTTP_PORT}" "tcp"; do
-    test "$UNATTENDED" = "false" || fail "Port ${HTTP_PORT} is in use."
+    test "${UNATTENDED}" = "false" || fail "Port ${HTTP_PORT} is in use."
     read -r -p "Port ${HTTP_PORT} is already in use, please choose a different HTTP port for UNMS. [${ALTERNATIVE_HTTP_PORT}]: " HTTP_PORT
     HTTP_PORT=${HTTP_PORT:-$ALTERNATIVE_HTTP_PORT}
   done
 
   while ! try_to_bind_port "${HTTPS_PORT}" "tcp"; do
-    test "$UNATTENDED" = "false" || fail "Port ${HTTPS_PORT} is in use."
+    test "${UNATTENDED}" = "false" || fail "Port ${HTTPS_PORT} is in use."
     read -r -p "Port ${HTTPS_PORT} is already in use, please choose a different HTTPS port for UNMS. [${ALTERNATIVE_HTTPS_PORT}]: " HTTPS_PORT
     HTTPS_PORT=${HTTPS_PORT:-$ALTERNATIVE_HTTPS_PORT}
   done
 
+  while ! try_to_bind_port "${SUSPEND_PORT}" "tcp"; do
+    if [ "${UNATTENDED}" = true ]; then
+      echo >&2 "WARNING: Port ${SUSPEND_PORT} is in use. Selecting ${ALTERNATIVE_SUSPEND_PORT} port for suspension."
+      SUSPEND_PORT="${ALTERNATIVE_SUSPEND_PORT}"
+      break
+    else
+      read -r -p "Port ${SUSPEND_PORT} is already in use, please choose a different Suspension port for UNMS. [${ALTERNATIVE_SUSPEND_PORT}]: " SUSPEND_PORT
+      SUSPEND_PORT=${SUSPEND_PORT:-$ALTERNATIVE_SUSPEND_PORT}
+    fi
+  done
+
   while ! try_to_bind_port "${NETFLOW_PORT}" "udp"; do
-    if [ "$UNATTENDED" = true ]; then
+    if [ "${UNATTENDED}" = true ]; then
       echo >&2 "WARNING: Port ${NETFLOW_PORT} is in use. Selecting ${ALTERNATIVE_NETFLOW_PORT} port for NetFlow."
       NETFLOW_PORT="${ALTERNATIVE_NETFLOW_PORT}"
       break
@@ -897,42 +1139,22 @@ create_data_volumes() {
   # always mount ~unms/data/cert as /cert
   # mount either an external cert dir or ~unms/data/cert as /usercert
   mkdir -p -m u+rwX,g-rwx,o-rwx "${DATA_DIR}/cert"
-  export CERT_DIR_MAPPING_NGINX="- ${DATA_DIR}/cert:/cert"
+  CERT_DIR_MAPPING_NGINX="- ${DATA_DIR}/cert:/cert"
   if [ -z "${SSL_CERT_DIR}" ]; then
-    export USERCERT_DIR_MAPPING_NGINX=""
+    USERCERT_DIR_MAPPING_NGINX=""
   else
     echo "Will mount ${SSL_CERT_DIR} as /usercert"
-    export USERCERT_DIR_MAPPING_NGINX="- ${SSL_CERT_DIR}:/usercert:ro"
+    USERCERT_DIR_MAPPING_NGINX="- ${SSL_CERT_DIR}:/usercert:ro"
   fi
 
   # Redis, Postgres, Fluentd
   mkdir -p -m u+rwX,g-rwx,o-rwx "${DATA_DIR}/redis"
-
-  # containers will change permissions at startup where necessary
-  chown -R "${USERNAME}" "${DATA_DIR}" || true
 }
 
 deploy_templates() {
   echo "Deploying templates"
-  cd "${SCRIPT_DIR}"
-
-  # set home dir in update.sh
-  if ! sed -i -- "s|##HOMEDIR##|${HOME_DIR}|g" update.sh; then
-    echo >&2 "Failed update home dir in update.sh"
-    exit 1
-  fi
-
-  # set branch name in update.sh
-  if ! sed -i -- "s|##BRANCH##|${BRANCH}|g" update.sh; then
-    echo >&2 "Failed update branch name in update.sh"
-    exit 1
-  fi
-
   mkdir -p "${APP_DIR}"
-  if ! cp -r ./* "${APP_DIR}/"; then
-    echo >&2 "Failed to deploy templates to ${APP_DIR}"
-    exit 1
-  fi
+  cp -r "${SCRIPT_DIR}"/* "${APP_DIR}/" || fail "Failed to deploy templates to ${APP_DIR}"
 }
 
 save_config() {
@@ -942,9 +1164,11 @@ VERSION="${VERSION}"
 DEMO="${DEMO}"
 NODE_ENV="${NODE_ENV}"
 DOCKER_IMAGE="${DOCKER_IMAGE}"
+UCRM_DOCKER_IMAGE="${UCRM_DOCKER_IMAGE}"
 DATA_DIR="${DATA_DIR}"
 HTTP_PORT="${HTTP_PORT}"
 HTTPS_PORT="${HTTPS_PORT}"
+SUSPEND_PORT="${SUSPEND_PORT}"
 NETFLOW_PORT="${NETFLOW_PORT}"
 PROXY_HTTPS_PORT="${PROXY_HTTPS_PORT}"
 WS_PORT="${WS_PORT}"
@@ -957,10 +1181,24 @@ HOST_TAG="${HOST_TAG}"
 BRANCH="${BRANCH}"
 SUBNET="${SUBNET}"
 CLUSTER_SIZE="${CLUSTER_SIZE}"
+UCRM_ENABLED="${UCRM_ENABLED}"
+UNMS_POSTGRES_USER="${UNMS_POSTGRES_USER}"
+UNMS_POSTGRES_DB="${UNMS_POSTGRES_DB}"
+UNMS_POSTGRES_SCHEMA="${UNMS_POSTGRES_SCHEMA}"
+UNMS_POSTGRES_PASSWORD="${UNMS_POSTGRES_PASSWORD}"
+UNMS_TOKEN="${UNMS_TOKEN}"
+UNMS_DEPLOYMENT="${UNMS_DEPLOYMENT}"
+UNMS_IP_WHITELIST="${UNMS_IP_WHITELIST}"
+UCRM_POSTGRES_USER="${UCRM_POSTGRES_USER}"
+UCRM_POSTGRES_DB="${UCRM_POSTGRES_DB}"
+UCRM_POSTGRES_SCHEMA="${UCRM_POSTGRES_SCHEMA}"
+UCRM_POSTGRES_PASSWORD="${UCRM_POSTGRES_PASSWORD}"
+UCRM_SECRET="${UCRM_SECRET}"
+POSTGRES_USER="${POSTGRES_USER}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD}"
 EOL
   then
-    echo >&2 "Failed to save config file ${CONFIG_FILE}"
-    exit 1
+    fail "Failed to save config file ${CONFIG_FILE}"
   fi
 }
 
@@ -1033,16 +1271,11 @@ delete_old_firmwares() {
 
 change_owner() {
   # only necessary when installing for the first time, as root
-  if [ "$EUID" -eq 0 ]; then
+  if [ "${EUID}" -eq 0 ]; then
     cd "${HOME_DIR}"
 
     if ! chown -R "${USERNAME}" ./*; then
       echo >&2 "Failed to change config files owner"
-      exit 1
-    fi
-
-    if ! chmod o+x "${APP_DIR}/unms-cli"; then
-      echo >&2 "Failed to change permissions on ${APP_DIR}/unms-cli"
       exit 1
     fi
 
@@ -1057,6 +1290,11 @@ change_owner() {
   else
     echo "Not running as root - will not change config files owner"
   fi
+
+  if ! chmod +x "${APP_DIR}/unms-cli"; then
+    echo >&2 "Failed to change permissions on ${APP_DIR}/unms-cli"
+    exit 1
+  fi
 }
 
 reset_udp_connections() {
@@ -1065,11 +1303,7 @@ reset_udp_connections() {
 
 start_docker_containers() {
   echo "Starting docker containers."
-  cd "${APP_DIR}"
-  if ! docker-compose up -d; then
-    echo >&2 "Failed to start docker containers"
-    exit 1
-  fi
+  "${APP_DIR}/unms-cli" start || fail "Failed to start docker containers"
 }
 
 remove_old_images() {
@@ -1077,7 +1311,7 @@ remove_old_images() {
   danglingImages=$(docker images -qf "dangling=true")
   if [ ! -z "${danglingImages}" ]; then docker rmi ${danglingImages} || true; fi
 
-  for imageName in "unms" "unms-nginx" "unms-fluentd" "unms-netflow"; do
+  for imageName in "unms" "ucrm" "unms-crm" "unms-nginx" "unms-fluentd" "unms-netflow"; do
     currentImage=$(docker ps --format "{{.Image}}" --filter name="${imageName}"$)
     oldImages=($(docker images "ubnt/${imageName}:"* --format "{{.Repository}}:{{.Tag}}" || true) "")
 
@@ -1120,33 +1354,35 @@ confirm_success() {
   if [ "${unmsRunning}" = true ]; then
     echo "UNMS is running"
   else
-    echo >&2 "UNMS is NOT running"
-    exit 1
+    fail "UNMS is NOT running"
   fi
 }
 
 check_system
+check_update_allowed
 check_custom_cert_path
 install_docker
 install_docker_compose
+check_free_space
 set_overcommit_memory
 create_user
 backup_mongo
 fix_080_permission_issue # fix issue when migrating from 0.8.0
 remove_old_restore_files
 migrate_app_files
-prepare_templates
 determine_public_ports # need to set all docker compose variables
 create_data_volumes
 create_docker_compose_file # compose file for docker-compose down
 login_to_dockerhub
 pull_docker_images
-build_docker_images
 stop_docker_containers
+check_raw_sockets
 check_free_ports
 determine_public_ports # again - now we have all info
 create_docker_compose_file # again - compose file for docker-compose up
 deploy_templates
+remove_crm_testing_data
+fix_postgres
 save_config
 setup_auto_update
 delete_old_firmwares

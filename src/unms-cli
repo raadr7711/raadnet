@@ -4,41 +4,56 @@ set -o errexit
 set -o pipefail
 
 export PATH="${PATH}:/usr/local/bin"
-export COMPOSE_PROJECT_NAME="unms"
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 APP_DIR="${SCRIPT_DIR}"
-DATA_DIR=$( readlink -f "${APP_DIR}/../data" )
+HOME_DIR="$(readlink -f "${APP_DIR}/..")"
+DATA_DIR="$(readlink -f "${HOME_DIR}/data")"
 DOCKER_COMPOSE_FILE="${APP_DIR}/docker-compose.yml"
 CONF_FILE="${APP_DIR}/unms.conf"
+COMPOSE_PROJECT_NAME="unms"
 
 USAGE="Usage:
   unms-cli [-h] COMMAND [COMMAND_ARGS]
 
 Commands:
+  restart
+    - Restarts UNMS.
   start
     - Starts UNMS.
   stop
     - Stops UNMS.
-  restart
-    - Restarts UNMS.
+  ucrm [--enable|--disable]
+    - Enable/Disable ucrm or print current status.
+  ip-whitelist [--show|--clear|--set ADDRESSES]
+    - Manage IP addresses that are allowed to access UNMS UI.
 
 Troubleshooting commands:
+  clear-conntrack
+    - Clears netflow connections from conntrack table.
+  clear-device-backups
+    - Use if device backups are using too much disk space.
+  disable-two-factor [--username USERNAME]
+    - Disable Two-Factor authentication for given user. Prints list of users if the --username argument is omitted.
   fix-redis-aof
     - Fixes redis append only file. Use if the aof file became corrupted.
-  rewrite-redis-aof
-    - Forces a rewrite of redis append only file. Use if the aof file became too large.
-  refresh-certificate
-    - Updates Let's Encrypt or custom certificate. Use if certificate expired and UI is inaccessible.
   reduce-device-update-frequency
     - Use if UNMS is overwhelmed with device updates and UI is inaccessible. Otherwise change device
       update frequency in UI in 'Settings -> Devices -> General Settings -> Device Update Frequency'.
-  clear-device-backups
-    - Use if device backups are using too much disk space.
+  refresh-certificate
+    - Updates Let's Encrypt or custom certificate. Use if certificate expired and UI is inaccessible.
+  restore-backup [--file BACKUP_FILE]
+    - Restore UNMS from the latest backup or from given backup file.
+  rewrite-redis-aof
+    - Forces a rewrite of redis append only file. Use if the aof file became too large.
+  set-password [--username USERNAME]
+    - Reset password for given user. Prints list of users if the --username argument is omitted.
+  set-superadmin [--username USERNAME]
+    - Change given user to superadmin. Prints list of users if the --username argument is omitted.
   set-workers COUNT
     - Set number of worker processes that are managing device connections. Use this option to better utilize
-      multicore processors.
+      multi-core processors.
 "
 
 # Log given message and exit with code 1.
@@ -64,7 +79,7 @@ failWithCommandUsage() {
 }
 
 dockerCompose() {
-  docker-compose -p unms -f "${DOCKER_COMPOSE_FILE}" "$@"
+  docker-compose -p "${COMPOSE_PROJECT_NAME}" -f "${DOCKER_COMPOSE_FILE}" "$@"
 }
 
 isRunning() {
@@ -77,17 +92,118 @@ isRunning() {
   fi
 }
 
-resetUdpConnections() {
-  NETFLOW_PORT=$(source "${CONF_FILE}" && echo "${NETFLOW_PORT}")
-  if [ -n "${NETFLOW_PORT}" ]; then
-    docker run --net=host --privileged --rm ubnt/ucrm-conntrack -D -p udp --dport="${NETFLOW_PORT}" || true
+# usage: confirm <question>
+# Prints given question and asks user to type Y or N.
+# Returns 0 if user typed Y, 1 if user typed N.
+# Exits if user failed to type Y or N too many times.
+# examples:
+# confirm "Do you want to continue?" || exit 1
+confirm() {
+  local question="$1"
+  for i in {0..10}; do
+    read -p "${question} [Y/N]" -n 1 -r
+    echo
+    if [[ ${REPLY} =~ ^[Yy]$ ]]; then
+      echo "Yes"
+      return 0
+    fi
+    if [[ ${REPLY} =~ ^[Nn]$ ]]; then
+      echo "No"
+      return 1
+    fi
+    echo "Please type Y or N."
+  done
+  echo "Too many failed attempts."
+  exit 1
+}
+
+# Read configuration option from config file.
+# Parameters:
+#  1 - config option name (e.g. SSL_CERT)
+#  2 - default value, used if the config option is not found, empty string by default
+readConfigValue() {
+  local option="$1"
+  local default="${2-}"
+  local value
+  local result
+
+  value=$(cat "${CONF_FILE}" | grep "^${option}=" | head -n 1 | sed 's/'"${option}"'=//' | sed 's/^"//' | sed 's/"$//')
+  result=$?
+  if [ "${result}" = 0 ]; then
+    echo -n "${value}"
+  else
+    echo -n "${default}"
   fi
+}
+
+# Write configuration option to config file.
+# Parameters:
+#  1 - config option name (e.g. "UCRM_ENABLED")
+#  2 - config option value (e.g. "true")
+updateConfigValue() {
+  local option="$1"
+  local value="$2"
+  if grep -q '^'"${option}"'=' "${CONF_FILE}"; then
+    local escapedValue="$(echo -n "${value}" | sed -e 's/[\/&]/\\&/g')"
+    sed -i 's/'"${option}"'.*/'"${option}"'="'"${escapedValue}"'"/' "${CONF_FILE}" || fail "Failed to update '${CONF_FILE}'"
+  else
+    echo "${option}=\"${value}\"" >> "${CONF_FILE}"
+  fi
+}
+
+# Read settings option from postgres.
+# Parameters:
+#  1 - settings option name (e.g. "ucrmEnabled")
+#  2 - default value, used if the settings option is not found, empty string by default
+readSettingsValue() {
+  local option="$1"
+  local default="${2-}"
+  local value
+  value="$(dockerCompose exec -T postgres psql --username postgres --dbname unms --no-password --quiet --tuples-only --no-align --command \
+    "SELECT value FROM unms.setting WHERE name = '${option}'")" || fail "Failed to get value of '${option}' from UNMS settings."
+  if [ -n "${value}" ]; then
+    echo -n "${value}" | tr -d '\n' | tr -d '\r' | sed 's/^"//' | sed 's/"$//'
+  else
+    echo -n "${default}"
+  fi
+}
+
+readCurrentVersion() {
+  grep "^version=" "${APP_DIR}/metadata" | sed 's/version=//'
+}
+
+# Update settings option.
+# Parameters:
+#  1 - settings option name (e.g. "ucrmEnabled")
+#  2 - settings option value (e.g. "true")
+#  3 - type - bool, string
+updateSettingsValue() {
+  local option="$1"
+  local value="$2"
+  dockerCompose exec -T postgres psql -U postgres -d unms -w -c \
+    "INSERT INTO unms.setting (name, value) VALUES ('${option}', '${value}'::jsonb) ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value" > /dev/null || fail "Failed to update UNMS settings."
+}
+
+# Update variable in docker-compose.yml
+# Parameters:
+#  1 - settings option name (e.g. "UCRM_ENABLED")
+#  2 - settings option value (e.g. "true")
+updateDockerComposeValue() {
+  local option="$1"
+  local value="$2"
+  local escapedValue="$(echo -n "${value}" | sed -e 's/[\/&]/\\&/g')"
+  sed -i 's/'"${option}"'.*/'"${option}"'='"${escapedValue}"'/' "${DOCKER_COMPOSE_FILE}" || fail "Failed to update '${DOCKER_COMPOSE_FILE}'"
+}
+
+resetUdpConnections() {
+  local netflowPort="$(readConfigValue "NETFLOW_PORT" "2055")"
+  docker run --net=host --privileged --rm ubnt/ucrm-conntrack -D -p udp --dport="${netflowPort}" || true
 }
 
 start() {
   echo "Starting UNMS..."
   resetUdpConnections
-  dockerCompose up -d || fail "Failed to start UNMS."
+  dockerCompose up -d unms netflow || fail "Failed to start UNMS."
   echo "UNMS started."
 }
 
@@ -140,7 +256,7 @@ run-rewrite-redis-aof() {
     fail "UNMS is not running, start it with:
     sudo bash ${SCRIPT_DIR}/unms-cli start"
   fi
-  dockerCompose exec redis redis-cli bgrewriteaof || fail "Failed to rewrite redis appendonly file."
+  dockerCompose exec -T redis redis-cli bgrewriteaof || fail "Failed to rewrite redis appendonly file."
 }
 
 run-refresh-certificate() {
@@ -148,19 +264,84 @@ run-refresh-certificate() {
     fail "UNMS is not running, start it with:
     sudo bash ${SCRIPT_DIR}/unms-cli start"
   fi
-  settings="$(dockerCompose exec redis redis-cli --raw get nms:nms | sed 's/\r//g' | tr -d '\n')" || fail "Failed to get UNMS settings."
-  domain="$(echo "${settings}" | grep '"hostname":"' | sed 's/.*"hostname":"\([^"]*\)".*/\1/')" || fail "Failed to determine hostname from UNMS settings."
-
-  if echo "${settings}" | grep '"useLetsEncrypt":true' >/dev/null; then
+  local domain="$(readSettingsValue "hostname" "$(hostname)")"
+  local useLetsEncrypt="$(readSettingsValue "useLetsEncrypt" "false")"
+  local sslCert="$(readConfigValue "SSL_CERT" "")"
+  if [ "${useLetsEncrypt}" = "true" ]; then
     echo "Refreshing Let's Encrypt certificate."
     dockerCompose exec nginx sudo -E -u unms /refresh-certificate.sh --lets-encrypt "${domain}"
-  else if [ -n "$(source "${CONF_FILE}" && echo "${SSL_CERT}")" ]; then
+  elif [ -n "${sslCert}" ]; then
     echo "Refreshing custom certificate."
     dockerCompose exec nginx sudo -E -u unms /refresh-certificate.sh --custom "${domain}"
   else
     echo "Refreshing self-signed certificate."
     dockerCompose exec nginx sudo -E -u unms /refresh-certificate.sh --self-signed "${domain}"
   fi
+}
+
+run-ip-whitelist() {
+  local commandUsage="Usage:
+  unms-cli ip-whitelist [-h] [--show|--clear|--set ADDRESSES]
+
+Options:
+  --clear          Allow access to UI from any address.
+  --show           Print addresses that are allowed to access UI.
+  --set ADDRESSES  Set comma-separated list of addresses or cidrs that are allowed to access UI.
+"
+  local whitelist=""
+  local show="false"
+  local clear="false"
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        echo "${commandUsage}"
+        exit 0
+        ;;
+      --clear)
+        test "${show}" = "false" || failWithCommandUsage "Cannot use --clear and --show together." "${commandUsage}"
+        test -z "${whitelist}" || failWithCommandUsage "Cannot use --clear and --set together." "${commandUsage}"
+        clear="true"
+        ;;
+      --set)
+        test "${show}" = "false" || failWithCommandUsage "Cannot use --set and --show together." "${commandUsage}"
+        test "${clear}" = "false" || failWithCommandUsage "Cannot use --set and --clear together." "${commandUsage}"
+        test -n "$2" || failWithCommandUsage "Address list cannot be empty. Use --clear to allow access to UI from any address." "${commandUsage}"
+        whitelist="$2"
+        shift
+        ;;
+      --show)
+        test "${clear}" = "false" || failWithCommandUsage "Cannot use --show and --clear together." "${commandUsage}"
+        test -z "${whitelist}" || failWithCommandUsage "Cannot use --show and --set together." "${commandUsage}"
+        show="true"
+        ;;
+      *)
+        failWithCommandUsage "Unexpected argument '$1'" "${commandUsage}"
+        ;;
+    esac
+    shift
+  done
+
+  if ! isRunning; then
+    fail "UNMS is not running, start it with:
+    sudo bash ${SCRIPT_DIR}/unms-cli start"
+  fi
+
+  if [ -n "${whitelist}" ]; then
+    dockerCompose exec nginx /ip-whitelist.sh --set "${whitelist}" || fail "Failed to update IP whitelist."
+    updateConfigValue "UNMS_IP_WHITELIST" "${whitelist}"
+    updateDockerComposeValue "UNMS_IP_WHITELIST" "${whitelist}"
+  elif [ "${clear}" = "true" ]; then
+    dockerCompose exec nginx /ip-whitelist.sh --clear
+  fi
+
+  # Always print current whitelist.
+  local currentWhitelist=""
+  currentWhitelist="$(dockerCompose exec nginx /ip-whitelist.sh --show)" || fail "Failed to get current IP whitelist."
+  if [ -z "${currentWhitelist}" ]; then
+    echo "Access to UI is allowed from any address."
+  else
+    echo "Access to UI is allowed from following addresses:"
+    echo "${currentWhitelist}"
   fi
 }
 
@@ -169,11 +350,7 @@ run-reduce-device-update-frequency() {
     fail "UNMS is not running, start it with:
     sudo bash ${SCRIPT_DIR}/unms-cli start"
   fi
-  local originalSettings
-  local updatedSettings
-  originalSettings=$(dockerCompose exec redis redis-cli --raw get nms:nms | sed 's/\r//g' | tr -d '\n') || fail "Failed to get UNMS settings."
-  updatedSettings=$(echo -n "${originalSettings}" | sed 's/deviceTransmissionProfile\":\"[^\"]*/deviceTransmissionProfile\":\"auto/')
-  dockerCompose exec redis redis-cli set nms:nms "${updatedSettings}" || fail "Failed to update UNMS settings."
+  updateSettingsValue "deviceTransmissionProfile" "\"auto\""
   echo "Device connection frequency changed to 'auto'. Please restart UNMS to apply changes:
     sudo bash ${SCRIPT_DIR}/unms-cli restart"
 }
@@ -206,7 +383,7 @@ run-clear-device-backups() {
       deviceId=$(basename "${backupDir}")
       (cd "${backupDir}" && rm ${backupIds})
       ids=$(echo "${backupIds}" | sed "s/ *$//" | sed "s/ /','/g" | sed "s/^/'/" | sed "s/$/'/") # "a b " -> "'a','b'"
-      dockerCompose exec postgres psql -U postgres -d unms -w -c "delete from device_backup where backup_id in (${ids})" > /dev/null
+      dockerCompose exec postgres psql -U postgres -d unms -w -c "DELETE FROM unms.device_backup WHERE backup_id in (${ids})" > /dev/null
       deletedCount=$(echo ${backupIds} | wc -w)
       deviceDeletedCount=$((${deviceDeletedCount} + ${deletedCount}))
     done
@@ -220,19 +397,22 @@ run-clear-device-backups() {
   fi
 }
 
+run-clear-conntrack() {
+  resetUdpConnections
+}
+
 run-set-workers() {
-  local command_usage="Usage:
+  local commandUsage="Usage:
   unms-cli set-workers [-h] COUNT"
   local workers=""
-  while [[ $# -gt 0 ]]; do
-    key="$1"
-    case $key in
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
       -h|--help)
-        echo "${command_usage}"
+        echo "${commandUsage}"
         exit 0
         ;;
       *)
-        test -z "${workers}" || failWithCommandUsage "Unexpected argument '$1'" "${command_usage}"
+        test -z "${workers}" || failWithCommandUsage "Unexpected argument '$1'" "${commandUsage}"
         # first positional argument is the worker count
         workers="$1"
         ;;
@@ -241,29 +421,321 @@ run-set-workers() {
   done
 
   # Check arguments.
-  test -n "${workers}" || failWithCommandUsage "Missing worker COUNT argument." "${command_usage}"
+  test -n "${workers}" || failWithCommandUsage "Missing worker COUNT argument." "${commandUsage}"
   [[ "${workers}" =~ ^[1-8]$ ]] || [[ "${workers}" = "auto" ]] || fail "Worker COUNT must be a number in range 1-8 or 'auto'."
 
   # Read current value.
-  currentWorkers=$(source "${CONF_FILE}" && echo "${CLUSTER_SIZE}") || fail "Failed to get current worker count."
+  local currentWorkers="$(readConfigValue "CLUSTER_SIZE" "auto")"
 
   echo "Current number of worker processes: ${currentWorkers}"
   echo "New number of worker processes: ${workers}"
 
   # Update
-  sed -i 's/CLUSTER_SIZE.*/CLUSTER_SIZE="'${workers}'"/' "${CONF_FILE}" || fail "Failed to update '${CONF_FILE}'"
-  sed -i 's/CLUSTER_SIZE.*/CLUSTER_SIZE='${workers}'/' "${DOCKER_COMPOSE_FILE}" || fail "Failed to update '${DOCKER_COMPOSE_FILE}'"
+  updateConfigValue "CLUSTER_SIZE" "${workers}"
+  updateDockerComposeValue "CLUSTER_SIZE" "${workers}"
 
   echo -e "Number of worker processes set to ${workers}. Please restart UNMS to apply changes:
     sudo bash ${SCRIPT_DIR}/unms-cli restart"
 }
 
+run-ucrm() {
+  local commandUsage="Usage:
+  unms-cli ucrm [-h] [--enable|--disable]"
+  local enable="false"
+  local disable="false"
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        echo "${commandUsage}"
+        exit 0
+        ;;
+      --enable)
+        test "${disable}" = "false" || failWithCommandUsage "Cannot set both --enable and --disable." "${commandUsage}"
+        enable="true"
+        ;;
+      --disable)
+        test "${enable}" = "false" || failWithCommandUsage "Cannot set both --enable and --disable." "${commandUsage}"
+        disable="true"
+        ;;
+      *)
+        # this command does not expect any positional argument
+        failWithCommandUsage "Unexpected argument '$1'" "${commandUsage}"
+        ;;
+    esac
+    shift # past argument key
+  done
+
+  if [ "${enable}" = "true" ]; then
+    echo "Enabling UCRM."
+    updateConfigValue "UCRM_ENABLED" "true"
+    updateDockerComposeValue "UCRM_ENABLED" "true"
+    updateSettingsValue "ucrmEnabled" "true"
+  else if [ "${disable}" = "true" ]; then
+    echo "Disabling UCRM."
+    updateConfigValue "UCRM_ENABLED" "false"
+    updateDockerComposeValue "UCRM_ENABLED" "false"
+    updateSettingsValue "ucrmEnabled" "false"
+  fi
+  fi
+
+  local currentlyEnabled="$(readConfigValue "UCRM_ENABLED" "false")"
+  if [ "${currentlyEnabled}" = "true" ]; then
+    echo "UCRM is enabled."
+  else
+    echo "UCRM is disabled."
+  fi
+
+  if [ "${enable}" = "true" ] || [ "${disable}" = "true" ]; then
+    echo "Please restart UNMS to apply changes:
+      sudo bash ${SCRIPT_DIR}/unms-cli restart"
+  fi
+}
+
+run-update() {
+  local commandUsage="Usage:
+  unms-cli update [-h] [--version VERSION] [--unattended]"
+  local version=""
+  local unattended="false"
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        echo "${commandUsage}"
+        exit 0
+        ;;
+      --unattended)
+        unattended="true"
+        ;;
+      --version)
+        test "$#" -gt 1 || fail "Missing argument to --version."
+        version="$2"
+        shift
+        ;;
+      *)
+        # this command does not expect any positional argument
+        failWithCommandUsage "Unexpected argument '$1'" "${commandUsage}"
+        ;;
+    esac
+    shift # past argument key
+  done
+
+  local branch="$(readConfigValue "BRANCH" "master")"
+  local tmpDir="${HOME_DIR}/update"
+  local rollbackDir="${tmpDir}/rollback"
+  local installScript="${tmpDir}/unms_install.sh"
+  local currentVersion="$(readCurrentVersion)"
+  local installScriptUrl="https://unms.com/v1/install"
+  if [[ "${currentVersion}" =~ ^0 ]]; then
+    installScriptUrl="https://raw.githubusercontent.com/Ubiquiti-App/UNMS/${branch}/install.sh"
+  fi
+
+  # create temporary directory for installation files and config backup
+  rm -rf "${tmpDir}" || fail "Failed to cleanup temp dir '${tmpDir}'."
+  mkdir -p "${tmpDir}" || fail "Failed to create temp dir '${tmpDir}'."
+  curl -fsSL "${installScriptUrl}" > "${installScript}" || (rm -rf "${tmpDir}"; fail "Failed to download install script from '${installScriptUrl}' to '${installScript}'.")
+
+  # backup files necessary for rollback
+  rm -rf "${rollbackDir}" || (rm -rf "${tmpDir}"; fail "Failed to cleanup rollback dir '${rollbackDir}'.")
+  mkdir -p "${rollbackDir}" || (rm -rf "${tmpDir}"; fail "Failed to create rollback dir '${rollbackDir}'.")
+  cp -r "${APP_DIR}/." "${rollbackDir}/" || fail "Failed to backup configuration to '${rollbackDir}'."
+
+  # run installation
+  chmod +x "${installScript}" || fail "Failed to make install script '${installScript}' executable."
+  args=( "--update" "--branch" "${branch}" )
+  if [ ! -z "${version}" ]; then
+    args+=("--version" "${version}")
+  fi
+  if [ "${unattended}" = "true" ]; then
+    args+=("--unattended")
+  fi
+  echo "Starting UNMS installation with: ${args[@]}"
+  if "${installScript}" "${args[@]}"; then
+    echo "UNMS update finished."
+    rm -rf "${tmpDir}" || fail "Failed to cleanup temp dir '${tmpDir}'."
+  else
+    echo "UNMS install script failed. Attempting rollback..."
+    mv -f "${rollbackDir}/unms.conf" "${APP_DIR}/unms.conf"
+    if ! "${rollbackDir}/install-full.sh" --update --unattended; then
+      echo "Rollback failed."
+    else
+      echo "Rollback successful."
+    fi
+    # remove temporary directories
+    rm -rf "${tmpDir}" || fail "Failed to cleanup temp dir '${tmpDir}'."
+    fail "UNMS update failed."
+  fi
+}
+
+run-disable-two-factor() {
+  local commandUsage="Usage:
+  unms-cli disable-two-factor [-h] [--username USERNAME]"
+  local username=""
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        echo "${commandUsage}"
+        exit 0
+        ;;
+      --username)
+        test "$#" -gt 1 || fail "Missing argument to --username."
+        username="$2"
+        shift
+        ;;
+      *)
+        # this command does not expect any positional argument
+        failWithCommandUsage "Unexpected argument '$1'" "${commandUsage}"
+        ;;
+    esac
+    shift # past argument key
+  done
+
+  if ! isRunning; then
+    fail "UNMS is not running, start it with:
+    sudo bash ${SCRIPT_DIR}/unms-cli start"
+  fi
+
+  if [ -z "${username}" ]; then
+    dockerCompose exec unms node setpwd.js
+  else
+    dockerCompose exec unms node setpwd.js two-factor "${username}"
+  fi
+}
+
+run-set-password() {
+  local commandUsage="Usage:
+  unms-cli set-password [-h] [--username USERNAME]"
+  local username=""
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        echo "${commandUsage}"
+        exit 0
+        ;;
+      --username)
+        test "$#" -gt 1 || fail "Missing argument to --username."
+        username="$2"
+        shift
+        ;;
+      *)
+        # this command does not expect any positional argument
+        failWithCommandUsage "Unexpected argument '$1'" "${commandUsage}"
+        ;;
+    esac
+    shift # past argument key
+  done
+
+  if ! isRunning; then
+    fail "UNMS is not running, start it with:
+    sudo bash ${SCRIPT_DIR}/unms-cli start"
+  fi
+
+  if [ -z "${username}" ]; then
+    dockerCompose exec unms node setpwd.js
+  else
+    dockerCompose exec unms node setpwd.js password "${username}"
+  fi
+}
+
+run-set-superadmin() {
+  local commandUsage="Usage:
+  unms-cli set-superadmin [-h] [--username USERNAME]"
+  local username=""
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        echo "${commandUsage}"
+        exit 0
+        ;;
+      --username)
+        test "$#" -gt 1 || fail "Missing argument to --username."
+        username="$2"
+        shift
+        ;;
+      *)
+        # this command does not expect any positional argument
+        failWithCommandUsage "Unexpected argument '$1'" "${commandUsage}"
+        ;;
+    esac
+    shift # past argument key
+  done
+
+  if ! isRunning; then
+    fail "UNMS is not running, start it with:
+    sudo bash ${SCRIPT_DIR}/unms-cli start"
+  fi
+
+  if [ -z "${username}" ]; then
+    dockerCompose exec unms node setpwd.js
+  else
+    dockerCompose exec unms node setpwd.js superadmin "${username}"
+  fi
+}
+
+run-restore-backup() {
+  local commandUsage="Usage:
+  unms-cli restore-backup [-h] [--file BACKUP_FILE]
+
+Options:
+  --file BACKUP_FILE  Optional path to backup file to restore from. If missing, UNMS will be restored from the latest backup.
+"
+
+  local backupPath=""
+  local backupFilename=""
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        echo "${commandUsage}"
+        exit 0
+        ;;
+      --file)
+        test "$#" -gt 1 || fail "Missing argument to --file."
+        backupPath="$2"
+        shift
+        ;;
+      *)
+        # this command does not expect any positional argument
+        failWithCommandUsage "Unexpected argument '$1'" "${commandUsage}"
+        ;;
+    esac
+    shift # past argument key
+  done
+
+  local backupDir="${SCRIPT_DIR}/../data/unms-backups/backups"
+  local restoreDir="${SCRIPT_DIR}/../data/unms-backups/restore"
+  if [ -z "${backupPath}" ]; then
+    local latestBackupPath
+
+    test -d "${backupDir}" || fail "No backups found."
+    latestBackupPath="$(find "${backupDir}" -type f -name "*.unms" | sort | tail -n 1)" || fail "No backups found."
+    test -n "${latestBackupPath}" || fail "No backups found."
+
+    backupPath="${latestBackupPath}"
+    backupFilename="$(basename -- "${backupPath}")"
+  else
+    test -e "${backupPath}" || fail "File '${backupPath}' not found."
+    test -f "${backupPath}" || fail "File '${backupPath}' is not a regular file."
+    backupFilename="$(basename -- "${backupPath}")"
+    backupPath="$(realpath -- "${backupPath}")"
+  fi
+
+  confirm "Would you like to restore UNMS from backup '${backupFilename}'?
+Please be aware that Network and CRM modules are now connected and application of this backup will replace the data in both modules and UNMS will be restarted." || exit 1
+
+  rm -rf "${restoreDir}" || fail "Failed to clear backup restore directory."
+  mkdir -p "${restoreDir}" || fail "Failed to create backup restore directory."
+  cd "${restoreDir}"
+  echo "Extracting backup."
+  tar -xf "${backupPath}" || fail "Failed to extract backup file."
+
+  run-restart
+
+  echo "UNMS was restored from backup '${backupFilename}'."
+}
+
 # Parse global arguments and command.
 # Command specific arguments will be parsed in run-COMMAND method.
 export COMMAND=""
-while [[ $# -gt 0 ]]; do
-  key="$1"
-  case $key in
+while [[ "$#" -gt 0 ]]; do
+  case "$1" in
     -h|--help)
       echo
       echo -e "${USAGE}"
@@ -294,7 +766,15 @@ case "${COMMAND}" in
   refresh-certificate) run-refresh-certificate;;
   reduce-device-update-frequency) run-reduce-device-update-frequency;;
   clear-device-backups) run-clear-device-backups;;
+  clear-conntrack) run-clear-conntrack;;
   set-workers) run-set-workers "$@";;
+  ucrm) run-ucrm "$@";;
+  update) run-update "$@";;
+  set-password) run-set-password "$@";;
+  set-superadmin) run-set-superadmin "$@";;
+  disable-two-factor) run-disable-two-factor "$@";;
+  ip-whitelist) run-ip-whitelist "$@";;
+  restore-backup) run-restore-backup "$@";;
   *)
     failWithUsage "Unknown command: '${COMMAND}'"
     ;;

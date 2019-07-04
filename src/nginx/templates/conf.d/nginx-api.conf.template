@@ -1,0 +1,156 @@
+server {
+  listen 12345;
+
+  location /refresh-certificate {
+    content_by_lua_block {
+      domain = ngx.var.arg_domain;
+      type = ngx.var.arg_type;
+
+      function log(message)
+        -- prints given message to nginx log
+        message = string.gsub(message, "'", "'\\''")
+        os.execute("echo '" .. message .. "'")
+      end
+
+      -- don't continue if domain is empty or contains characters not allowed in domains or IP addresses
+      -- allowed characters are [a-z A-Z 0-9 . : -]
+      if not string.find(domain, "^[%w%.:-]+$") then
+        log('Invalid domain');
+        ngx.status = 400
+        ngx.print('Invalid domain')
+        return ngx.exit(400)
+      end
+      -- don't continue if certificate type contains invalid characters
+      if not string.find(type, "^[%w-]+$") then
+        log('Invalid cert type, expected "custom", "self-signed" or "lets-encrypt"');
+        ngx.status = 400
+        ngx.print('Invalid cert type, expected "custom", "self-signed" or "lets-encrypt"')
+        return ngx.exit(400)
+      end
+
+      function execute(command)
+        -- returns success, error code, output.
+        local f = io.popen(command..' 2>&1 && echo " $?"')
+        local output = f:read"*a"
+        local begin, finish, code = output:find" (%d+)\n$"
+        output, code = output:sub(1, begin, -1), tonumber(code)
+        return code == 0 and true or false, code, output
+      end
+
+      log('Calling /refresh-certificate.sh --' .. type ..' "' .. domain .. '"');
+      success, code, output = execute('/refresh-certificate.sh --' .. type ..' "' .. domain .. '"')
+      log(output)
+      if code ~= 0 then
+        ngx.req.set_header("Content-Type", "text/plain")
+        ngx.status = 500
+        ngx.print(output)
+        return ngx.exit(500)
+      else
+        ngx.req.set_header("Content-Type", "text/plain")
+        ngx.print('OK')
+        return ngx.exit(200)
+      end
+    }
+  }
+
+  location /refresh-configuration {
+    content_by_lua_block {
+      local standaloneWss = ngx.var.arg_standaloneWss
+      if standaloneWss == nil then
+        standaloneWss = '0'
+      end
+
+      local standaloneUcrm = ngx.var.arg_standaloneUcrm
+      if standaloneUcrm == nil then
+        standaloneUcrm = '0'
+      end
+
+      local noUcrm = ngx.var.arg_noUcrm
+      if noUcrm == nil then
+        noUcrm = '0'
+      end
+
+      local mainPage = ngx.var.arg_mainPage;
+      if mainPage == nil then
+        mainPage = 'unms'
+      end
+
+      local unmsDomain = ngx.var.arg_unmsDomain;
+      local ucrmDomain = ngx.var.arg_ucrmDomain;
+
+      function log(message)
+        -- prints given message to nginx log
+        message = string.gsub(message, "'", "'\\''")
+        os.execute("echo '" .. message .. "'")
+      end
+
+      function execute(command)
+        -- returns success, error code, output.
+        local f = io.popen(command..' 2>&1 && echo " $?"')
+        local output = f:read"*a"
+        local begin, finish, code = output:find" (%d+)\n$"
+        output, code = output:sub(1, begin, -1), tonumber(code)
+        return code == 0 and true or false, code, output
+      end
+
+      function error400(message)
+        log(message);
+        ngx.req.set_header("Content-Type", "text/plain")
+        ngx.status = 400
+        ngx.print(message)
+        return ngx.exit(400)
+      end
+
+      if mainPage ~= 'unms' and mainPage ~= 'ucrm' then
+        return error400('Invalid "mainPage" argument, expected "unms" or "ucrm"');
+      end
+      if standaloneUcrm ~= '0' and standaloneUcrm ~= '1' then
+        return error400('Argument "standaloneUcrm" must have value 0 or 1.');
+      end
+      if standaloneWss ~= '0' and standaloneWss ~= '1' then
+        return error400('Argument "standaloneWss" must have value 0 or 1.');
+      end
+      if noUcrm ~= '0' and noUcrm ~= '1' then
+        return error400('Argument "noUcrm" must have value 0 or 1.');
+      end
+      if standaloneUcrm == '1' then
+        if unmsDomain == nil then
+          return error400('Argument "unmsDomain" must be specified when "standaloneUcrm" is used.');
+        end
+        if ucrmDomain == nil then
+          return error400('Argument "ucrmDomain" must be specified when "standaloneUcrm" is used.');
+        end
+        if mainPage == 'unms' then
+            return error400('Argument "mainPage" must be "ucrm" when "standaloneUcrm" is used.');
+        end
+        if noUcrm == '1' then
+            return error400('Argument "noUcrm" must not be specified when "standaloneUcrm" is used.');
+        end
+      end
+
+      local command = '/refresh-configuration.sh --main-page ' .. mainPage .. ''
+      if standaloneUcrm == '1' then
+        command = command .. ' --standalone-ucrm --ucrm-domain ' .. ucrmDomain .. ' --unms-domain ' .. unmsDomain .. ''
+      end
+      if standaloneWss == '1' then
+        command = command .. ' --standalone-wss'
+      end
+      if noUcrm == '1' then
+        command = command .. ' --no-ucrm'
+      end
+      log('Calling ' .. command)
+      success, code, output = execute('sudo --preserve-env ' .. command)
+      log(output)
+      if code ~= 0 then
+        ngx.req.set_header("Content-Type", "text/plain")
+        ngx.status = 500
+        ngx.print(output)
+        return ngx.exit(500)
+      else
+        ngx.req.set_header("Content-Type", "text/plain")
+        ngx.print('OK')
+        return ngx.exit(200)
+      end
+    }
+  }
+}
