@@ -245,9 +245,10 @@ run-fix-redis-aof() {
     fail "Please stop UNMS first:
     sudo bash ${SCRIPT_DIR}/unms-cli stop"
   fi
-  dockerCompose run --no-deps --rm --entrypoint /usr/local/bin/redis-check-aof redis --fix /data/db/appendonly.aof <<EOF
+  dockerCompose run --rm --entrypoint /usr/local/bin/redis-check-aof redis --fix /data/db/appendonly.aof <<EOF
 Y
 EOF
+  dockerCompose down 2> /dev/null || fail "Failed to stop UNMS."
 }
 
 # Shrink the redis append only file in ../data/redis/appendonly.aof.
@@ -731,51 +732,56 @@ Please be aware that Network and CRM modules are now connected and application o
   echo "UNMS was restored from backup '${backupFilename}'."
 }
 
-# Parse global arguments and command.
-# Command specific arguments will be parsed in run-COMMAND method.
-export COMMAND=""
-while [[ "$#" -gt 0 ]]; do
-  case "$1" in
-    -h|--help)
-      echo
-      echo -e "${USAGE}"
-      exit 0
-      ;;
+main() {
+  # Parse global arguments and command.
+  # Command specific arguments will be parsed in run-COMMAND method.
+  export COMMAND=""
+  while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        echo
+        echo -e "${USAGE}"
+        exit 0
+        ;;
+      *)
+        test -z "${COMMAND}" || failWithUsage "Unexpected argument: '$1'"
+        # first positional argument is the COMMAND
+        COMMAND="$1"
+        shift
+        break
+        ;;
+    esac
+    shift # past argument key
+  done
+  test -n "${COMMAND}" || failWithUsage "Missing COMMAND argument."
+
+  # Check that we have docker-compose file.
+  test -f "${DOCKER_COMPOSE_FILE}" || fail "Docker Compose file '${DOCKER_COMPOSE_FILE}' not found."
+
+  # Run command.
+  case "${COMMAND}" in
+    start) run-start;;
+    stop) run-stop;;
+    restart) run-restart;;
+    fix-redis-aof) run-fix-redis-aof;;
+    rewrite-redis-aof) run-rewrite-redis-aof;;
+    refresh-certificate) run-refresh-certificate;;
+    reduce-device-update-frequency) run-reduce-device-update-frequency;;
+    clear-device-backups) run-clear-device-backups;;
+    clear-conntrack) run-clear-conntrack;;
+    set-workers) run-set-workers "$@";;
+    ucrm) run-ucrm "$@";;
+    update) run-update "$@";;
+    set-password) run-set-password "$@";;
+    set-superadmin) run-set-superadmin "$@";;
+    disable-two-factor) run-disable-two-factor "$@";;
+    ip-whitelist) run-ip-whitelist "$@";;
+    restore-backup) run-restore-backup "$@";;
     *)
-      test -z "${COMMAND}" || failWithUsage "Unexpected argument: '$1'"
-      # first positional argument is the COMMAND
-      COMMAND="$1"
-      shift
-      break
+      failWithUsage "Unknown command: '${COMMAND}'"
       ;;
   esac
-  shift # past argument key
-done
-test -n "${COMMAND}" || failWithUsage "Missing COMMAND argument."
+  exit 0 # ensure that bash does not run the main() again if script is changed while being executed during update
+}
 
-# Check that we have docker-compose file.
-test -f "${DOCKER_COMPOSE_FILE}" || fail "Docker Compose file '${DOCKER_COMPOSE_FILE}' not found."
-
-# Run command.
-case "${COMMAND}" in
-  start) run-start;;
-  stop) run-stop;;
-  restart) run-restart;;
-  fix-redis-aof) run-fix-redis-aof;;
-  rewrite-redis-aof) run-rewrite-redis-aof;;
-  refresh-certificate) run-refresh-certificate;;
-  reduce-device-update-frequency) run-reduce-device-update-frequency;;
-  clear-device-backups) run-clear-device-backups;;
-  clear-conntrack) run-clear-conntrack;;
-  set-workers) run-set-workers "$@";;
-  ucrm) run-ucrm "$@";;
-  update) run-update "$@";;
-  set-password) run-set-password "$@";;
-  set-superadmin) run-set-superadmin "$@";;
-  disable-two-factor) run-disable-two-factor "$@";;
-  ip-whitelist) run-ip-whitelist "$@";;
-  restore-backup) run-restore-backup "$@";;
-  *)
-    failWithUsage "Unknown command: '${COMMAND}'"
-    ;;
-esac
+main "$@"

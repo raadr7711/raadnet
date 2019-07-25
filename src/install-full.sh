@@ -62,7 +62,7 @@ export SECURE_LINK_SECRET="$(LC_CTYPE=C tr -dc "a-zA-Z0-9" < /dev/urandom | fold
 export UCRM_ENABLED="true"
 export UCRM_CONFIGURABLE="true"
 export UCRM_DOCKER_IMAGE="ubnt/unms-crm"
-export UCRM_VERSION="3.0.0-beta.4"
+export UCRM_VERSION="3.0.0-beta.6"
 export UCRM_POSTGRES_PASSWORD="$(LC_CTYPE=C tr -dc "a-zA-Z0-9" < /dev/urandom | fold -w 48 | head -n 1 || true)"
 export UCRM_SECRET="$(LC_CTYPE=C tr -dc "a-zA-Z0-9" < /dev/urandom | fold -w 48 | head -n 1 || true)"
 export UCRM_USER="${USERNAME}"
@@ -823,7 +823,7 @@ fix_080_permission_issue() {
 
 start_postgres() {
   echo "Starting postgres DB."
-  docker-compose -p unms -f "${DOCKER_COMPOSE_PATH}" up --no-deps -d postgres >/dev/null || fail "Failed to start Postgres DB."
+  docker-compose -p unms -f "${DOCKER_COMPOSE_PATH}" up -d postgres >/dev/null || fail "Failed to start Postgres DB."
   for delay in 1 2 2 5 10 10 0; do
     test "${delay}" != "0" || fail "Postgres DB failed to start in time."
     if docker-compose -p unms -f "${DOCKER_COMPOSE_PATH}" exec -T postgres pg_isready 2>&1 >/dev/null; then
